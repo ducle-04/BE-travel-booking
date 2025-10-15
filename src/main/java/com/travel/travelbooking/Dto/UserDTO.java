@@ -1,0 +1,56 @@
+package com.travel.travelbooking.Dto;
+
+import jakarta.validation.constraints.*;
+import lombok.Data;
+
+import java.time.LocalDateTime;
+import java.util.Set;
+
+@Data
+public class UserDTO {
+    @Positive(message = "ID phải là số dương")
+    private Long id;
+
+    @NotBlank(message = "Tên người dùng không được để trống")
+    @Size(min = 3, max = 50, message = "Tên người dùng phải từ 3 đến 50 ký tự")
+    @Pattern(regexp = "^[a-zA-Z0-9_-]+$", message = "Tên người dùng chỉ được chứa chữ cái, số, dấu gạch dưới hoặc gạch ngang")
+    private String username;
+
+    @NotBlank(message = "Email không được để trống")
+    @Email(message = "Email không đúng định dạng")
+    @Size(max = 100, message = "Email không được vượt quá 100 ký tự")
+    private String email;
+
+    @NotBlank(message = "Mật khẩu không được để trống")
+    @Size(min = 6, max = 100, message = "Mật khẩu phải từ 6 đến 100 ký tự")
+    private String password;
+
+    @NotBlank(message = "Tên đầy đủ không được để trống")
+    @Size(min = 2, max = 100, message = "Tên đầy đủ phải từ 2 đến 100 ký tự")
+    private String fullname;
+
+    @NotBlank(message = "Số điện thoại không được để trống")
+    @Pattern(regexp = "^(\\+84|0)[0-9]{9,12}$", message = "Số điện thoại không hợp lệ")
+    private String phoneNumber;
+
+    private boolean enabled = true;
+
+    @NotNull(message = "Thời gian tạo không được để trống")
+    private LocalDateTime createdAt;
+
+    private Set<String> roles;
+
+    public UserDTO() {}
+
+    public UserDTO(Long id, String username, String email, String password, String fullname, String phoneNumber, boolean enabled, LocalDateTime createdAt, Set<String> roles) {
+        this.id = id;
+        this.username = username;
+        this.email = email;
+        this.password = password;
+        this.fullname = fullname;
+        this.phoneNumber = phoneNumber;
+        this.enabled = enabled;
+        this.createdAt = createdAt;
+        this.roles = roles;
+    }
+}
