@@ -2,6 +2,7 @@ package com.travel.travelbooking.Service;
 
 import com.travel.travelbooking.Entity.Role;
 import com.travel.travelbooking.Entity.User;
+import com.travel.travelbooking.Entity.UserStatus;
 import com.travel.travelbooking.Dto.UserDTO;
 import com.travel.travelbooking.Repository.RoleRepository;
 import com.travel.travelbooking.Repository.UserRepository;
@@ -12,6 +13,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class UserService {
@@ -28,10 +30,10 @@ public class UserService {
         this.passwordEncoder = passwordEncoder;
     }
 
-    // 1. Đăng ký người dùng mới
+    // 1. Đăng ký user mới (dành cho User thường, role mặc định là USER)
     @Transactional
-    public User registerUser(String username, String password, String email, String fullname,
-                             String phoneNumber, String... roleNames) {
+    public User registerUser(String username, String password, String email,
+                             String fullname, String phoneNumber, String... roleNames) {
         if (userRepository.existsByUsername(username)) {
             throw new RuntimeException("Tên đăng nhập đã tồn tại");
         }
@@ -45,44 +47,50 @@ public class UserService {
         user.setEmail(email);
         user.setFullname(fullname);
         user.setPhoneNumber(phoneNumber);
-        user.setEnabled(true);
+        user.setStatus(UserStatus.ACTIVE);
         user.setCreatedAt(LocalDateTime.now());
-        user.setRoles(getOrCreateRoles(roleNames));
+        user.setRoles(getOrCreateRoles(roleNames.length > 0 ? roleNames : new String[]{"USER"}));
 
         return userRepository.save(user);
     }
 
-    // 2. Lấy tất cả user
-    public List<User> getAllUsers() {
-        return userRepository.findAll();
+    // 2. Lấy tất cả user (trừ DELETED, phân loại theo role nếu cần)
+    public List<User> getAllUsers(String role) {
+        return userRepository.findAll()
+                .stream()
+                .filter(user -> user.getStatus() != UserStatus.DELETED)
+                .filter(user -> role == null || user.getRoles().stream()
+                        .anyMatch(r -> r.getName().equalsIgnoreCase(role)))
+                .collect(Collectors.toList());
     }
 
     // 3. Lấy user theo ID
     public Optional<User> getUserById(Long id) {
-        return userRepository.findById(id);
+        return userRepository.findById(id)
+                .filter(user -> user.getStatus() != UserStatus.DELETED);
     }
 
-    // 4. Xóa user theo ID
-    @Transactional
-    public void deleteUser(Long id) {
-        userRepository.deleteById(id);
-    }
-
-    // 5. Xóa user theo username
-    @Transactional
-    public boolean deleteByUsername(String username) {
+    // 4. Lấy user theo username
+    public User findByUsername(String username) {
         User user = userRepository.findByUsername(username);
-        if (user == null) return false;
-        userRepository.delete(user);
+        if (user != null && user.getStatus() != UserStatus.DELETED) {
+            return user;
+        }
+        return null;
+    }
+
+    // 5. Xóa mềm user (User hoặc Staff)
+    @Transactional
+    public boolean softDeleteUser(Long id) {
+        Optional<User> optional = userRepository.findById(id);
+        if (optional.isEmpty()) return false;
+        User user = optional.get();
+        user.setStatus(UserStatus.DELETED);
+        userRepository.save(user);
         return true;
     }
 
-    // 6. Tìm user theo username
-    public User findByUsername(String username) {
-        return userRepository.findByUsername(username);
-    }
-
-    // 7. Tạo user từ DTO (Admin)
+    // 6. Admin tạo user hoặc Staff từ DTO
     @Transactional
     public User createUser(UserDTO dto) {
         if (userRepository.existsByUsername(dto.getUsername())) {
@@ -94,32 +102,37 @@ public class UserService {
 
         User user = new User();
         user.setUsername(dto.getUsername());
-        user.setEmail(dto.getEmail());
         user.setPassword(passwordEncoder.encode(dto.getPassword()));
+        user.setEmail(dto.getEmail());
         user.setFullname(dto.getFullname());
         user.setPhoneNumber(dto.getPhoneNumber());
-        user.setEnabled(dto.isEnabled());
-        user.setCreatedAt(dto.getCreatedAt() != null ? dto.getCreatedAt() : LocalDateTime.now());
+        user.setStatus(dto.getStatus() != null ? dto.getStatus() : UserStatus.ACTIVE);
+        user.setCreatedAt(LocalDateTime.now());
         user.setRoles(getOrCreateRoles(dto.getRoles().toArray(new String[0])));
 
         return userRepository.save(user);
     }
 
-    // 8. Admin cập nhật user bất kỳ
+    // 7. Admin cập nhật Staff
     @Transactional
     public User updateUser(String username, UserDTO dto) {
         User user = userRepository.findByUsername(username);
-        if (user == null) return null;
+        if (user == null || user.getStatus() == UserStatus.DELETED) return null;
 
-        if (!dto.getEmail().equals(user.getEmail()) && userRepository.existsByEmail(dto.getEmail())) {
+        // Kiểm tra user có role STAFF
+        if (!user.getRoles().stream().anyMatch(role -> role.getName().equalsIgnoreCase("STAFF"))) {
+            throw new RuntimeException("Chỉ có thể cập nhật thông tin của Staff");
+        }
+
+        if (!dto.getEmail().equals(user.getEmail()) &&
+                userRepository.existsByEmail(dto.getEmail())) {
             throw new RuntimeException("Email đã được sử dụng");
         }
 
         user.setEmail(dto.getEmail());
         user.setFullname(dto.getFullname());
         user.setPhoneNumber(dto.getPhoneNumber());
-        user.setEnabled(dto.isEnabled());
-        user.setCreatedAt(dto.getCreatedAt() != null ? dto.getCreatedAt() : user.getCreatedAt());
+        user.setStatus(dto.getStatus() != null ? dto.getStatus() : user.getStatus());
 
         if (dto.getPassword() != null && !dto.getPassword().isEmpty()) {
             user.setPassword(passwordEncoder.encode(dto.getPassword()));
@@ -129,13 +142,14 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    // 9. User tự cập nhật profile (không được đổi password, role, enabled, createdAt)
+    // 8. User hoặc Staff tự sửa hồ sơ
     @Transactional
     public User updateOwnProfile(String username, UserDTO dto) {
         User user = userRepository.findByUsername(username);
-        if (user == null) return null;
+        if (user == null || user.getStatus() == UserStatus.DELETED) return null;
 
-        if (!dto.getEmail().equals(user.getEmail()) && userRepository.existsByEmail(dto.getEmail())) {
+        if (!dto.getEmail().equals(user.getEmail()) &&
+                userRepository.existsByEmail(dto.getEmail())) {
             throw new RuntimeException("Email đã được sử dụng");
         }
 
@@ -143,6 +157,25 @@ public class UserService {
         user.setFullname(dto.getFullname());
         user.setPhoneNumber(dto.getPhoneNumber());
 
+        return userRepository.save(user);
+    }
+
+    // 9. Admin cập nhật trạng thái user hoặc Staff
+    @Transactional
+    public User changeStatus(String username, String status) {
+        User user = userRepository.findByUsername(username);
+        if (user == null || user.getStatus() == UserStatus.DELETED) {
+            throw new RuntimeException("User not found");
+        }
+
+        UserStatus newStatus;
+        try {
+            newStatus = UserStatus.valueOf(status.toUpperCase());
+        } catch (IllegalArgumentException e) {
+            throw new RuntimeException("Invalid status value");
+        }
+
+        user.setStatus(newStatus);
         return userRepository.save(user);
     }
 

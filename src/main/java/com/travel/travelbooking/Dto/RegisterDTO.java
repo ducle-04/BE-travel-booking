@@ -3,8 +3,6 @@ package com.travel.travelbooking.Dto;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 
-import java.time.LocalDateTime;
-
 @Data
 public class RegisterDTO {
     @NotBlank(message = "Tên người dùng không được để trống")
@@ -28,18 +26,4 @@ public class RegisterDTO {
     @NotBlank(message = "Số điện thoại không được để trống")
     @Pattern(regexp = "^(\\+84|0)[0-9]{9,12}$", message = "Số điện thoại không hợp lệ")
     private String phoneNumber;
-
-    @NotNull(message = "Thời gian tạo không được để trống")
-    private LocalDateTime createdAt;
-
-    public RegisterDTO() {}
-
-    public RegisterDTO(String username, String password, String email, String fullname, String phoneNumber, LocalDateTime createdAt) {
-        this.username = username;
-        this.password = password;
-        this.email = email;
-        this.fullname = fullname;
-        this.phoneNumber = phoneNumber;
-        this.createdAt = createdAt;
-    }
 }

@@ -22,8 +22,9 @@ public class User {
     @Column(nullable = false, unique = true)
     private String email;
 
+    @Enumerated(EnumType.STRING)
     @Column(nullable = false)
-    private boolean enabled;
+    private UserStatus status;
 
     @Column(nullable = false)
     private String fullname;
@@ -45,5 +46,6 @@ public class User {
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
+        status = UserStatus.ACTIVE;
     }
 }

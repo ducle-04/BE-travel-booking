@@ -63,8 +63,13 @@ public class SecurityConfig {
                 .authorizeHttpRequests(auth -> auth
                         .requestMatchers("/api/auth/**").permitAll()
                         .requestMatchers("/api/user/profile").authenticated()
-                        .requestMatchers("/api/admin/profile").hasRole("ADMIN")
-                        .requestMatchers("/api/user/**").hasRole("ADMIN")
+                        .requestMatchers("/api/user/{username}").hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers("/api/user/all").hasRole("ADMIN")
+                        .requestMatchers("/api/user/staff/all").hasRole("ADMIN")
+                        .requestMatchers("/api/user/create").hasRole("ADMIN")
+                        .requestMatchers("/api/user/staff/update/{username}").hasRole("ADMIN")
+                        .requestMatchers("/api/user/delete/{id}").hasRole("ADMIN")
+                        .requestMatchers("/api/user/status/{username}").hasRole("ADMIN")
                         .anyRequest().authenticated()
                 )
                 .exceptionHandling(exception -> exception

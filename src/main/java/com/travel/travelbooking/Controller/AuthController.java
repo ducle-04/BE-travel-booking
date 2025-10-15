@@ -12,6 +12,7 @@ import com.travel.travelbooking.Config.JwtUtil;
 import com.travel.travelbooking.Dto.LoginDTO;
 import com.travel.travelbooking.Dto.RegisterDTO;
 import com.travel.travelbooking.Entity.User;
+import com.travel.travelbooking.Entity.UserStatus;
 import com.travel.travelbooking.Service.UserService;
 
 import jakarta.validation.Valid;
@@ -54,17 +55,26 @@ public class AuthController {
         try {
             UserDetails userDetails = userDetailsService.loadUserByUsername(loginDTO.getUsername());
 
-            if (passwordEncoder.matches(loginDTO.getPassword(), userDetails.getPassword())) {
-                Set<String> roles = userDetails.getAuthorities().stream()
-                        .map(auth -> auth.getAuthority().replace("ROLE_", ""))
-                        .collect(Collectors.toSet());
-                String token = jwtUtil.generateToken(loginDTO.getUsername(), roles);
-                Map<String, String> response = new HashMap<>();
-                response.put("token", token);
-                return ResponseEntity.ok(response);
-            } else {
+            // Kiểm tra mật khẩu
+            if (!passwordEncoder.matches(loginDTO.getPassword(), userDetails.getPassword())) {
                 return ResponseEntity.status(401).body("Thông tin đăng nhập không hợp lệ");
             }
+
+            // Kiểm tra trạng thái tài khoản
+            User user = userService.findByUsername(loginDTO.getUsername());
+            if (user == null || user.getStatus() != UserStatus.ACTIVE) {
+                return ResponseEntity.status(403).body("Tài khoản không hoạt động");
+            }
+
+            // Tạo token nếu hợp lệ
+            Set<String> roles = userDetails.getAuthorities().stream()
+                    .map(auth -> auth.getAuthority().replace("ROLE_", ""))
+                    .collect(Collectors.toSet());
+            String token = jwtUtil.generateToken(loginDTO.getUsername(), roles);
+            Map<String, String> response = new HashMap<>();
+            response.put("token", token);
+            return ResponseEntity.ok(response);
+
         } catch (UsernameNotFoundException e) {
             return ResponseEntity.status(401).body("Thông tin đăng nhập không hợp lệ");
         }

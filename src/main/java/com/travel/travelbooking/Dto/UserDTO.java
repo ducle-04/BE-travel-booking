@@ -1,5 +1,6 @@
 package com.travel.travelbooking.Dto;
 
+import com.travel.travelbooking.Entity.UserStatus;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 
@@ -8,6 +9,7 @@ import java.util.Set;
 
 @Data
 public class UserDTO {
+
     @Positive(message = "ID phải là số dương")
     private Long id;
 
@@ -33,23 +35,24 @@ public class UserDTO {
     @Pattern(regexp = "^(\\+84|0)[0-9]{9,12}$", message = "Số điện thoại không hợp lệ")
     private String phoneNumber;
 
-    private boolean enabled = true;
+    @NotNull(message = "Trạng thái không được để trống")
+    private UserStatus status = UserStatus.ACTIVE; // ACTIVE, INACTIVE, BANNED, DELETED
 
-    @NotNull(message = "Thời gian tạo không được để trống")
     private LocalDateTime createdAt;
 
     private Set<String> roles;
 
     public UserDTO() {}
 
-    public UserDTO(Long id, String username, String email, String password, String fullname, String phoneNumber, boolean enabled, LocalDateTime createdAt, Set<String> roles) {
+    public UserDTO(Long id, String username, String email, String password, String fullname,
+                   String phoneNumber, UserStatus status, LocalDateTime createdAt, Set<String> roles) {
         this.id = id;
         this.username = username;
         this.email = email;
         this.password = password;
         this.fullname = fullname;
         this.phoneNumber = phoneNumber;
-        this.enabled = enabled;
+        this.status = status;
         this.createdAt = createdAt;
         this.roles = roles;
     }

@@ -2,6 +2,7 @@ package com.travel.travelbooking.Controller;
 
 import com.travel.travelbooking.Entity.Role;
 import com.travel.travelbooking.Entity.User;
+import com.travel.travelbooking.Entity.UserStatus;
 import com.travel.travelbooking.Dto.UserDTO;
 import com.travel.travelbooking.Service.UserService;
 
@@ -27,7 +28,7 @@ public class UserController {
         this.userService = userService;
     }
 
-    // 1a. Lấy profile người dùng hiện tại
+    // 1. Lấy profile người dùng hiện tại (User, Staff, Admin)
     @GetMapping("/profile")
     public ResponseEntity<UserDTO> getProfile(@AuthenticationPrincipal UserDetails userDetails) {
         if (userDetails == null) {
@@ -42,7 +43,7 @@ public class UserController {
         return ResponseEntity.ok(toDTO(user));
     }
 
-    // 1b. Cập nhật profile người dùng hiện tại (dành cho người dùng thường)
+    // 2. Cập nhật profile người dùng hiện tại (User, Staff, Admin)
     @PutMapping("/profile")
     public ResponseEntity<UserDTO> updateProfile(@AuthenticationPrincipal UserDetails userDetails,
                                                  @Valid @RequestBody UserDTO dto) {
@@ -63,47 +64,31 @@ public class UserController {
         return ResponseEntity.ok(toDTO(updatedUser));
     }
 
-    // 1c. Cập nhật profile admin
-    @PutMapping("/admin/profile")
-    @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<UserDTO> updateAdminProfile(@AuthenticationPrincipal UserDetails userDetails,
-                                                      @Valid @RequestBody UserDTO dto) {
-        if (userDetails == null) {
-            return ResponseEntity.status(401).build(); // Unauthorized
-        }
-
-        String username = userDetails.getUsername();
-        if (!username.equals(dto.getUsername())) {
-            return ResponseEntity.status(403).build();
-        }
-
-        User updatedUser = userService.updateOwnProfile(username, dto);
-        if (updatedUser == null) {
-            return ResponseEntity.notFound().build();
-        }
-
-        return ResponseEntity.ok(toDTO(updatedUser));
-    }
-
-    // 2. Admin lấy danh sách người dùng thường
+    // 3. Admin lấy danh sách User thường
     @GetMapping("/all")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<List<UserDTO>> getAllUsers() {
-        List<User> users = userService.getAllUsers().stream()
-                .filter(user -> user.getRoles().stream()
-                        .noneMatch(role -> role.getName().equalsIgnoreCase("ADMIN")))
-                .collect(Collectors.toList());
-
+        List<User> users = userService.getAllUsers("USER");
         List<UserDTO> dtos = users.stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
-
         return ResponseEntity.ok(dtos);
     }
 
-    // 3. Admin xem chi tiết 1 user
-    @GetMapping("/{username}")
+    // 4. Admin lấy danh sách Staff
+    @GetMapping("/staff/all")
     @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<List<UserDTO>> getAllStaff() {
+        List<User> staff = userService.getAllUsers("STAFF");
+        List<UserDTO> dtos = staff.stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
+    }
+
+    // 5. Admin hoặc Staff xem chi tiết user
+    @GetMapping("/{username}")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ResponseEntity<UserDTO> getUserByUsername(@PathVariable String username) {
         User user = userService.findByUsername(username);
         if (user == null) {
@@ -112,7 +97,7 @@ public class UserController {
         return ResponseEntity.ok(toDTO(user));
     }
 
-    // 4. Admin tạo user mới
+    // 6. Admin tạo User hoặc Staff
     @PostMapping("/create")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserDTO> createUser(@Valid @RequestBody UserDTO dto) {
@@ -120,10 +105,10 @@ public class UserController {
         return ResponseEntity.ok(toDTO(user));
     }
 
-    // 5. Admin cập nhật user bất kỳ
-    @PutMapping("/update/{username}")
+    // 7. Admin cập nhật Staff
+    @PutMapping("/staff/update/{username}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<UserDTO> updateUser(@PathVariable String username, @Valid @RequestBody UserDTO dto) {
+    public ResponseEntity<UserDTO> updateStaff(@PathVariable String username, @Valid @RequestBody UserDTO dto) {
         User updatedUser = userService.updateUser(username, dto);
         if (updatedUser == null) {
             return ResponseEntity.notFound().build();
@@ -131,15 +116,27 @@ public class UserController {
         return ResponseEntity.ok(toDTO(updatedUser));
     }
 
-    // 6. Admin xóa user
-    @DeleteMapping("/delete/{username}")
+    // 8. Admin xóa mềm User hoặc Staff
+    @DeleteMapping("/delete/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<Void> deleteUser(@PathVariable String username) {
-        boolean deleted = userService.deleteByUsername(username);
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
+        boolean deleted = userService.softDeleteUser(id);
         if (!deleted) {
             return ResponseEntity.notFound().build();
         }
         return ResponseEntity.ok().build();
+    }
+
+    // 9. Admin cập nhật trạng thái User hoặc Staff
+    @PutMapping("/status/{username}")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<UserDTO> changeStatus(@PathVariable String username, @RequestParam String status) {
+        try {
+            User updatedUser = userService.changeStatus(username, status);
+            return ResponseEntity.ok(toDTO(updatedUser));
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body(null); // Invalid status value
+        }
     }
 
     // Helper chuyển từ Entity -> DTO
@@ -151,10 +148,10 @@ public class UserController {
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
-                user.getPassword(), // Password should not be exposed in DTO
+                null, // Không trả password trong DTO
                 user.getFullname(),
                 user.getPhoneNumber(),
-                user.isEnabled(),
+                user.getStatus(),
                 user.getCreatedAt(),
                 roles
         );
