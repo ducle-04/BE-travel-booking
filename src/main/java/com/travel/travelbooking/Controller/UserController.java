@@ -28,11 +28,11 @@ public class UserController {
         this.userService = userService;
     }
 
-    // 1. Lấy profile người dùng hiện tại (User, Staff, Admin)
+    // 1. Lấy thông tin hồ sơ người dùng hiện tại (User, Staff, Admin)
     @GetMapping("/profile")
     public ResponseEntity<UserDTO> getProfile(@AuthenticationPrincipal UserDetails userDetails) {
         if (userDetails == null) {
-            return ResponseEntity.status(401).build(); // Unauthorized
+            return ResponseEntity.status(401).build(); // Không được ủy quyền
         }
 
         User user = userService.findByUsername(userDetails.getUsername());
@@ -43,7 +43,7 @@ public class UserController {
         return ResponseEntity.ok(toDTO(user));
     }
 
-    // 2. Cập nhật profile người dùng hiện tại (User, Staff, Admin)
+    // 2. Cập nhật hồ sơ người dùng hiện tại (User, Staff, Admin)
     @PutMapping("/profile")
     public ResponseEntity<UserDTO> updateProfile(@AuthenticationPrincipal UserDetails userDetails,
                                                  @Valid @RequestBody UserDTO dto) {
@@ -66,7 +66,7 @@ public class UserController {
 
     // 3. Admin lấy danh sách User thường
     @GetMapping("/all")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ResponseEntity<List<UserDTO>> getAllUsers() {
         List<User> users = userService.getAllUsers("USER");
         List<UserDTO> dtos = users.stream()
@@ -77,7 +77,7 @@ public class UserController {
 
     // 4. Admin lấy danh sách Staff
     @GetMapping("/staff/all")
-    @PreAuthorize("hasRole('ADMIN')")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ResponseEntity<List<UserDTO>> getAllStaff() {
         List<User> staff = userService.getAllUsers("STAFF");
         List<UserDTO> dtos = staff.stream()
@@ -135,8 +135,30 @@ public class UserController {
             User updatedUser = userService.changeStatus(username, status);
             return ResponseEntity.ok(toDTO(updatedUser));
         } catch (IllegalArgumentException e) {
-            return ResponseEntity.badRequest().body(null); // Invalid status value
+            return ResponseEntity.badRequest().body(null); // Giá trị trạng thái không hợp lệ
         }
+    }
+
+    // Endpoint mới: Lấy tất cả tài khoản (bất kể vai trò)
+    @GetMapping("/accounts/all")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    public ResponseEntity<List<UserDTO>> getAllAccounts() {
+        List<User> users = userService.getAllUsers(null); // null để lấy tất cả người dùng
+        List<UserDTO> dtos = users.stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
+    }
+
+    // Endpoint mới: Lấy danh sách người dùng có vai trò ADMIN
+    @GetMapping("/admin/all")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    public ResponseEntity<List<UserDTO>> getAllAdmins() {
+        List<User> admins = userService.getAllUsers("ADMIN");
+        List<UserDTO> dtos = admins.stream()
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+        return ResponseEntity.ok(dtos);
     }
 
     // Helper chuyển từ Entity -> DTO
@@ -148,7 +170,7 @@ public class UserController {
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
-                null, // Không trả password trong DTO
+                null, // Không trả mật khẩu trong DTO
                 user.getFullname(),
                 user.getPhoneNumber(),
                 user.getStatus(),

@@ -23,7 +23,6 @@ public class UserDTO {
     @Size(max = 100, message = "Email không được vượt quá 100 ký tự")
     private String email;
 
-    @NotBlank(message = "Mật khẩu không được để trống")
     @Size(min = 6, max = 100, message = "Mật khẩu phải từ 6 đến 100 ký tự")
     private String password;
 
