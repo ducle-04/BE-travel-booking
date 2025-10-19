@@ -61,18 +61,15 @@ public class SecurityConfig {
                 .csrf(csrf -> csrf.disable())
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
                 .authorizeHttpRequests(auth -> auth
-                        .requestMatchers("/api/auth/**").permitAll()
-                        .requestMatchers("/api/user/profile").authenticated()
-                        .requestMatchers("/api/user/{username}").hasAnyRole("ADMIN", "STAFF")
-                        .requestMatchers("/api/user/all").hasAnyRole("ADMIN", "STAFF")
-                        .requestMatchers("/api/user/staff/all").hasAnyRole("ADMIN", "STAFF")
-                        .requestMatchers("/api/user/create").hasRole("ADMIN")
-                        .requestMatchers("/api/user/staff/update/{username}").hasRole("ADMIN")
-                        .requestMatchers("/api/user/delete/{id}").hasRole("ADMIN")
-                        .requestMatchers("/api/user/status/{username}").hasRole("ADMIN")
-                        .requestMatchers("/api/user/accounts/all").hasAnyRole("ADMIN", "STAFF")
-                        .requestMatchers("/api/user/admin/all").hasAnyRole("ADMIN", "STAFF")
-                        .anyRequest().authenticated()
+                        .requestMatchers("/api/auth/**").permitAll() // Cho phép tất cả truy cập vào các API auth
+                        .requestMatchers("/api/user/profile").authenticated() // Yêu cầu xác thực cho API hồ sơ
+                        .requestMatchers("/api/user/{username}").hasAnyRole("ADMIN", "STAFF") // Chỉ ADMIN hoặc STAFF xem chi tiết user
+                        .requestMatchers("/api/user/list").hasAnyRole("ADMIN", "STAFF") // Chỉ ADMIN hoặc STAFF truy cập API danh sách người dùng
+                        .requestMatchers("/api/user/create").hasRole("ADMIN") // Chỉ ADMIN tạo user
+                        .requestMatchers("/api/user/staff/update/{username}").hasRole("ADMIN") // Chỉ ADMIN cập nhật staff
+                        .requestMatchers("/api/user/delete/{id}").hasRole("ADMIN") // Chỉ ADMIN xóa mềm user
+                        .requestMatchers("/api/user/status/{username}").hasRole("ADMIN") // Chỉ ADMIN cập nhật trạng thái
+                        .anyRequest().authenticated() // Tất cả các yêu cầu khác cần xác thực
                 )
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((request, response, authException) -> {

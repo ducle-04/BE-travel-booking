@@ -66,13 +66,18 @@ public class AuthController {
                 return ResponseEntity.status(403).body("Tài khoản không hoạt động");
             }
 
-            // Tạo token nếu hợp lệ
+            // Tạo token và lấy danh sách roles
             Set<String> roles = userDetails.getAuthorities().stream()
                     .map(auth -> auth.getAuthority().replace("ROLE_", ""))
                     .collect(Collectors.toSet());
             String token = jwtUtil.generateToken(loginDTO.getUsername(), roles);
-            Map<String, String> response = new HashMap<>();
+
+            // Tạo phản hồi chứa token, username và roles
+            Map<String, Object> response = new HashMap<>();
             response.put("token", token);
+            response.put("username", loginDTO.getUsername());
+            response.put("roles", roles);
+
             return ResponseEntity.ok(response);
 
         } catch (UsernameNotFoundException e) {

@@ -64,29 +64,18 @@ public class UserController {
         return ResponseEntity.ok(toDTO(updatedUser));
     }
 
-    // 3. Admin lấy danh sách User thường
-    @GetMapping("/all")
+    // 3. Lấy danh sách người dùng với bộ lọc vai trò
+    @GetMapping("/list")
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
-    public ResponseEntity<List<UserDTO>> getAllUsers() {
-        List<User> users = userService.getAllUsers("USER");
+    public ResponseEntity<List<UserDTO>> getUsersByRole(@RequestParam(required = false) String role) {
+        List<User> users = userService.getAllUsers(role);
         List<UserDTO> dtos = users.stream()
                 .map(this::toDTO)
                 .collect(Collectors.toList());
         return ResponseEntity.ok(dtos);
     }
 
-    // 4. Admin lấy danh sách Staff
-    @GetMapping("/staff/all")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
-    public ResponseEntity<List<UserDTO>> getAllStaff() {
-        List<User> staff = userService.getAllUsers("STAFF");
-        List<UserDTO> dtos = staff.stream()
-                .map(this::toDTO)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(dtos);
-    }
-
-    // 5. Admin hoặc Staff xem chi tiết user
+    // 4. Admin hoặc Staff xem chi tiết user
     @GetMapping("/{username}")
     @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
     public ResponseEntity<UserDTO> getUserByUsername(@PathVariable String username) {
@@ -97,7 +86,7 @@ public class UserController {
         return ResponseEntity.ok(toDTO(user));
     }
 
-    // 6. Admin tạo User hoặc Staff
+    // 5. Admin tạo User hoặc Staff
     @PostMapping("/create")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserDTO> createUser(@Valid @RequestBody UserDTO dto) {
@@ -105,7 +94,7 @@ public class UserController {
         return ResponseEntity.ok(toDTO(user));
     }
 
-    // 7. Admin cập nhật Staff
+    // 6. Admin cập nhật Staff
     @PutMapping("/staff/update/{username}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserDTO> updateStaff(@PathVariable String username, @Valid @RequestBody UserDTO dto) {
@@ -116,7 +105,7 @@ public class UserController {
         return ResponseEntity.ok(toDTO(updatedUser));
     }
 
-    // 8. Admin xóa mềm User hoặc Staff
+    // 7. Admin xóa mềm User hoặc Staff
     @DeleteMapping("/delete/{id}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
@@ -127,7 +116,7 @@ public class UserController {
         return ResponseEntity.ok().build();
     }
 
-    // 9. Admin cập nhật trạng thái User hoặc Staff
+    // 8. Admin cập nhật trạng thái User hoặc Staff
     @PutMapping("/status/{username}")
     @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<UserDTO> changeStatus(@PathVariable String username, @RequestParam String status) {
@@ -137,28 +126,6 @@ public class UserController {
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body(null); // Giá trị trạng thái không hợp lệ
         }
-    }
-
-    // Endpoint mới: Lấy tất cả tài khoản (bất kể vai trò)
-    @GetMapping("/accounts/all")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
-    public ResponseEntity<List<UserDTO>> getAllAccounts() {
-        List<User> users = userService.getAllUsers(null); // null để lấy tất cả người dùng
-        List<UserDTO> dtos = users.stream()
-                .map(this::toDTO)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(dtos);
-    }
-
-    // Endpoint mới: Lấy danh sách người dùng có vai trò ADMIN
-    @GetMapping("/admin/all")
-    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
-    public ResponseEntity<List<UserDTO>> getAllAdmins() {
-        List<User> admins = userService.getAllUsers("ADMIN");
-        List<UserDTO> dtos = admins.stream()
-                .map(this::toDTO)
-                .collect(Collectors.toList());
-        return ResponseEntity.ok(dtos);
     }
 
     // Helper chuyển từ Entity -> DTO
