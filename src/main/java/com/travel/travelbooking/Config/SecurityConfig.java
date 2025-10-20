@@ -4,6 +4,7 @@ import com.travel.travelbooking.Entity.Role;
 import com.travel.travelbooking.Repository.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -69,6 +70,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/user/staff/update/{username}").hasRole("ADMIN") // Chỉ ADMIN cập nhật staff
                         .requestMatchers("/api/user/delete/{id}").hasRole("ADMIN") // Chỉ ADMIN xóa mềm user
                         .requestMatchers("/api/user/status/{username}").hasRole("ADMIN") // Chỉ ADMIN cập nhật trạng thái
+                        .requestMatchers("/api/destinations", "/api/destinations/{id}", "/api/destinations/search", "/api/destinations/region").permitAll()
+                        .requestMatchers("/api/destinations/**").hasAnyRole("ADMIN", "STAFF") // Yêu cầu ADMIN hoặc STAFF cho POST, PUT, DELETE
                         .anyRequest().authenticated() // Tất cả các yêu cầu khác cần xác thực
                 )
                 .exceptionHandling(exception -> exception
