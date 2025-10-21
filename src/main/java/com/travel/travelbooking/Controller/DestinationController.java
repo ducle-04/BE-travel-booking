@@ -4,10 +4,12 @@ import com.travel.travelbooking.Dto.DestinationDTO;
 import com.travel.travelbooking.Entity.DestinationStatus;
 import com.travel.travelbooking.Entity.Region;
 import com.travel.travelbooking.Service.DestinationService;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.HashMap;
 import java.util.List;
@@ -41,7 +43,6 @@ public class DestinationController {
         if (id == null || id <= 0) {
             return ResponseEntity.badRequest().body("ID điểm đến không hợp lệ");
         }
-
         try {
             DestinationDTO destination = destinationService.getDestinationById(id);
             if (destination.getStatus() == DestinationStatus.DELETED) {
@@ -61,7 +62,6 @@ public class DestinationController {
         if (name == null || name.trim().isEmpty()) {
             return ResponseEntity.badRequest().body("Tên điểm đến không được để trống");
         }
-
         try {
             List<DestinationDTO> destinations = destinationService.searchDestinationsByName(name).stream()
                     .filter(dto -> dto.getStatus() != DestinationStatus.DELETED)
@@ -89,18 +89,21 @@ public class DestinationController {
         }
     }
 
-    @PostMapping
+    @PostMapping(consumes = {"multipart/form-data"})
     @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
-    public ResponseEntity<?> createDestination(@RequestBody DestinationDTO destinationDTO) {
-        if (destinationDTO.getName() == null || destinationDTO.getName().trim().isEmpty()) {
-            return ResponseEntity.badRequest().body("Tên điểm đến không được để trống");
-        }
-        if (destinationDTO.getRegion() == null) {
-            return ResponseEntity.badRequest().body("Khu vực (region) không được để trống");
-        }
-
+    public ResponseEntity<?> createDestination(
+            @RequestPart("destination") String destinationJson,
+            @RequestPart(value = "image", required = false) MultipartFile imageFile) {
         try {
-            DestinationDTO createdDestination = destinationService.createDestination(destinationDTO);
+            ObjectMapper mapper = new ObjectMapper();
+            DestinationDTO destinationDTO = mapper.readValue(destinationJson, DestinationDTO.class);
+            if (destinationDTO.getName() == null || destinationDTO.getName().trim().isEmpty()) {
+                return ResponseEntity.badRequest().body("Tên điểm đến không được để trống");
+            }
+            if (destinationDTO.getRegion() == null) {
+                return ResponseEntity.badRequest().body("Khu vực (region) không được để trống");
+            }
+            DestinationDTO createdDestination = destinationService.createDestination(destinationDTO, imageFile);
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Tạo điểm đến thành công");
             response.put("destination", createdDestination);
@@ -112,18 +115,22 @@ public class DestinationController {
         }
     }
 
-    @PutMapping("/{id}")
+    @PutMapping(value = "/{id}", consumes = {"multipart/form-data"})
     @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
-    public ResponseEntity<?> updateDestination(@PathVariable Long id, @RequestBody DestinationDTO destinationDTO) {
-        if (id == null || id <= 0 || destinationDTO.getName() == null || destinationDTO.getName().trim().isEmpty()) {
-            return ResponseEntity.badRequest().body("ID hoặc tên điểm đến không hợp lệ");
-        }
-        if (destinationDTO.getRegion() == null) {
-            return ResponseEntity.badRequest().body("Khu vực (region) không được để trống");
-        }
-
+    public ResponseEntity<?> updateDestination(
+            @PathVariable Long id,
+            @RequestPart("destination") String destinationJson,
+            @RequestPart(value = "image", required = false) MultipartFile imageFile) {
         try {
-            DestinationDTO updatedDestination = destinationService.updateDestination(id, destinationDTO);
+            ObjectMapper mapper = new ObjectMapper();
+            DestinationDTO destinationDTO = mapper.readValue(destinationJson, DestinationDTO.class);
+            if (destinationDTO.getName() == null || destinationDTO.getName().trim().isEmpty()) {
+                return ResponseEntity.badRequest().body("Tên điểm đến không được để trống");
+            }
+            if (destinationDTO.getRegion() == null) {
+                return ResponseEntity.badRequest().body("Khu vực (region) không được để trống");
+            }
+            DestinationDTO updatedDestination = destinationService.updateDestination(id, destinationDTO, imageFile);
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Cập nhật điểm đến thành công");
             response.put("destination", updatedDestination);
@@ -143,7 +150,6 @@ public class DestinationController {
         if (id == null || id <= 0) {
             return ResponseEntity.badRequest().body("ID điểm đến không hợp lệ");
         }
-
         try {
             destinationService.deleteDestination(id);
             return ResponseEntity.noContent().build();

@@ -7,7 +7,9 @@ import com.travel.travelbooking.Repository.TourRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 import java.util.Optional;
@@ -21,6 +23,9 @@ public class DestinationService {
 
     @Autowired
     private TourRepository tourRepository;
+
+    @Autowired
+    private CloudinaryService cloudinaryService;
 
     private DestinationDTO toDTO(Destination destination) {
         DestinationDTO dto = new DestinationDTO();
@@ -44,14 +49,17 @@ public class DestinationService {
         return destination;
     }
 
-    public DestinationDTO createDestination(DestinationDTO destinationDTO) {
+    public DestinationDTO createDestination(DestinationDTO destinationDTO, MultipartFile imageFile) throws IOException {
         if (destinationDTO.getName() == null || destinationDTO.getName().trim().isEmpty()) {
             throw new IllegalArgumentException("Tên điểm đến không được để trống");
         }
         if (destinationDTO.getRegion() == null) {
             throw new IllegalArgumentException("Khu vực (region) không được để trống");
         }
-        if (destinationDTO.getImageUrl() != null && !destinationDTO.getImageUrl().trim().isEmpty()) {
+        if (imageFile != null && !imageFile.isEmpty()) {
+            String imageUrl = cloudinaryService.uploadImage(imageFile);
+            destinationDTO.setImageUrl(imageUrl);
+        } else if (destinationDTO.getImageUrl() != null && !destinationDTO.getImageUrl().trim().isEmpty()) {
             try {
                 new URL(destinationDTO.getImageUrl()).toURI();
             } catch (Exception e) {
@@ -65,7 +73,8 @@ public class DestinationService {
 
         Destination destination = toEntity(destinationDTO);
         Destination savedDestination = destinationRepository.save(destination);
-        return toDTO(savedDestination);
+        return destinationRepository.findByIdWithTourCount(savedDestination.getId())
+                .orElseThrow(() -> new RuntimeException("Lỗi khi lấy thông tin điểm đến vừa tạo"));
     }
 
     public List<DestinationDTO> getAllDestinations() {
@@ -76,12 +85,8 @@ public class DestinationService {
         if (id == null || id <= 0) {
             throw new IllegalArgumentException("ID điểm đến không hợp lệ");
         }
-        Optional<DestinationDTO> destinationDTO = destinationRepository.findByIdWithTourCount(id);
-        if (destinationDTO.isPresent()) {
-            return destinationDTO.get();
-        } else {
-            throw new RuntimeException("Điểm đến không tồn tại với ID: " + id);
-        }
+        return destinationRepository.findByIdWithTourCount(id)
+                .orElseThrow(() -> new RuntimeException("Điểm đến không tồn tại với ID: " + id));
     }
 
     public List<DestinationDTO> searchDestinationsByName(String name) {
@@ -91,7 +96,7 @@ public class DestinationService {
         return destinationRepository.findByNameContainingIgnoreCaseWithTourCount(name);
     }
 
-    public DestinationDTO updateDestination(Long id, DestinationDTO destinationDTO) {
+    public DestinationDTO updateDestination(Long id, DestinationDTO destinationDTO, MultipartFile imageFile) throws IOException {
         if (id == null || id <= 0) {
             throw new IllegalArgumentException("ID điểm đến không hợp lệ");
         }
@@ -100,13 +105,6 @@ public class DestinationService {
         }
         if (destinationDTO.getRegion() == null) {
             throw new IllegalArgumentException("Khu vực (region) không được để trống");
-        }
-        if (destinationDTO.getImageUrl() != null && !destinationDTO.getImageUrl().trim().isEmpty()) {
-            try {
-                new URL(destinationDTO.getImageUrl()).toURI();
-            } catch (Exception e) {
-                throw new IllegalArgumentException("URL hình ảnh không hợp lệ");
-            }
         }
 
         Optional<Destination> existingDestination = destinationRepository.findById(id);
@@ -117,13 +115,24 @@ public class DestinationService {
                             .anyMatch(d -> !d.getId().equals(id))) {
                 throw new IllegalArgumentException("Điểm đến với tên '" + destinationDTO.getName() + "' đã tồn tại");
             }
+            if (imageFile != null && !imageFile.isEmpty()) {
+                String newImageUrl = cloudinaryService.uploadImage(imageFile);
+                destination.setImageUrl(newImageUrl);
+            } else if (destinationDTO.getImageUrl() != null && !destinationDTO.getImageUrl().trim().isEmpty()) {
+                try {
+                    new URL(destinationDTO.getImageUrl()).toURI();
+                    destination.setImageUrl(destinationDTO.getImageUrl());
+                } catch (Exception e) {
+                    throw new IllegalArgumentException("URL hình ảnh không hợp lệ");
+                }
+            }
             destination.setName(destinationDTO.getName());
             destination.setDescription(destinationDTO.getDescription());
-            destination.setImageUrl(destinationDTO.getImageUrl());
             destination.setStatus(destinationDTO.getStatus() != null ? destinationDTO.getStatus() : DestinationStatus.ACTIVE);
             destination.setRegion(destinationDTO.getRegion());
             Destination updatedDestination = destinationRepository.save(destination);
-            return toDTO(updatedDestination);
+            return destinationRepository.findByIdWithTourCount(id)
+                    .orElseThrow(() -> new RuntimeException("Lỗi khi lấy thông tin điểm đến vừa cập nhật"));
         } else {
             throw new RuntimeException("Điểm đến không tồn tại với ID: " + id);
         }
