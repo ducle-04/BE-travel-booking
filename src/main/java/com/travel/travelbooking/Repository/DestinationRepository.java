@@ -53,4 +53,6 @@ public interface DestinationRepository extends JpaRepository<Destination, Long> 
         ORDER BY d.id ASC
     """)
     List<DestinationDTO> findByNameContainingIgnoreCaseWithTourCount(String name);
+
+    Optional<Destination> findByName(String name);
 }

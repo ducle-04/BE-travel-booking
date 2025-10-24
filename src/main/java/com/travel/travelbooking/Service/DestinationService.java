@@ -96,6 +96,14 @@ public class DestinationService {
         return destinationRepository.findByNameContainingIgnoreCaseWithTourCount(name);
     }
 
+    public List<DestinationDTO> getDestinationsByRegion(Region region) {
+        return destinationRepository.findByRegion(region).stream()
+                .filter(dest -> dest.getStatus() != DestinationStatus.DELETED)
+                .map(this::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
     public DestinationDTO updateDestination(Long id, DestinationDTO destinationDTO, MultipartFile imageFile) throws IOException {
         if (id == null || id <= 0) {
             throw new IllegalArgumentException("ID điểm đến không hợp lệ");
@@ -107,43 +115,56 @@ public class DestinationService {
             throw new IllegalArgumentException("Khu vực (region) không được để trống");
         }
 
-        Optional<Destination> existingDestination = destinationRepository.findById(id);
-        if (existingDestination.isPresent()) {
-            Destination destination = existingDestination.get();
-            if (!destination.getName().equals(destinationDTO.getName()) &&
-                    destinationRepository.findByNameContainingIgnoreCase(destinationDTO.getName()).stream()
-                            .anyMatch(d -> !d.getId().equals(id))) {
-                throw new IllegalArgumentException("Điểm đến với tên '" + destinationDTO.getName() + "' đã tồn tại");
-            }
-            if (imageFile != null && !imageFile.isEmpty()) {
-                String newImageUrl = cloudinaryService.uploadImage(imageFile);
-                destination.setImageUrl(newImageUrl);
-            } else if (destinationDTO.getImageUrl() != null && !destinationDTO.getImageUrl().trim().isEmpty()) {
-                try {
-                    new URL(destinationDTO.getImageUrl()).toURI();
-                    destination.setImageUrl(destinationDTO.getImageUrl());
-                } catch (Exception e) {
-                    throw new IllegalArgumentException("URL hình ảnh không hợp lệ");
-                }
-            }
-            destination.setName(destinationDTO.getName());
-            destination.setDescription(destinationDTO.getDescription());
-            destination.setStatus(destinationDTO.getStatus() != null ? destinationDTO.getStatus() : DestinationStatus.ACTIVE);
-            destination.setRegion(destinationDTO.getRegion());
-            Destination updatedDestination = destinationRepository.save(destination);
-            return destinationRepository.findByIdWithTourCount(id)
-                    .orElseThrow(() -> new RuntimeException("Lỗi khi lấy thông tin điểm đến vừa cập nhật"));
-        } else {
-            throw new RuntimeException("Điểm đến không tồn tại với ID: " + id);
+        Destination destination = destinationRepository.findById(id)
+                .orElseThrow(() -> new RuntimeException("Điểm đến không tồn tại với ID: " + id));
+
+        // Check duplicate name
+        if (!destination.getName().equalsIgnoreCase(destinationDTO.getName()) &&
+                destinationRepository.findByNameContainingIgnoreCase(destinationDTO.getName()).stream()
+                        .anyMatch(d -> !d.getId().equals(id))) {
+            throw new IllegalArgumentException("Điểm đến với tên '" + destinationDTO.getName() + "' đã tồn tại");
         }
+
+        // Handle image update
+        if (imageFile != null && !imageFile.isEmpty()) {
+            String newImageUrl = cloudinaryService.uploadImage(imageFile);
+            destination.setImageUrl(newImageUrl);
+        } else if (destinationDTO.getImageUrl() != null && !destinationDTO.getImageUrl().trim().isEmpty()) {
+            try {
+                new URL(destinationDTO.getImageUrl()).toURI();
+                destination.setImageUrl(destinationDTO.getImageUrl());
+            } catch (Exception e) {
+                throw new IllegalArgumentException("URL hình ảnh không hợp lệ");
+            }
+        }
+
+        destination.setName(destinationDTO.getName());
+        destination.setDescription(destinationDTO.getDescription());
+        destination.setRegion(destinationDTO.getRegion());
+
+        DestinationStatus oldStatus = destination.getStatus();
+        DestinationStatus newStatus = destinationDTO.getStatus() != null ? destinationDTO.getStatus() : DestinationStatus.ACTIVE;
+
+        destination.setStatus(newStatus);
+
+        // ✅ Đồng bộ trạng thái Tour theo đúng nghiệp vụ
+        List<Tour> tours = destination.getTours();
+
+        if (newStatus == DestinationStatus.INACTIVE) {
+            for (Tour tour : tours) {
+                tour.setStatus(TourStatus.INACTIVE);
+            }
+            tourRepository.saveAll(tours);
+        }
+        // ✅ Nếu ACTIVE → giữ nguyên trạng thái tour (KHÔNG tự bật lại)
+
+        Destination updatedDestination = destinationRepository.save(destination);
+
+        // Trả về thêm count tour
+        return destinationRepository.findByIdWithTourCount(id)
+                .orElseThrow(() -> new RuntimeException("Lỗi khi lấy thông tin điểm đến vừa cập nhật"));
     }
 
-    public List<DestinationDTO> getDestinationsByRegion(Region region) {
-        return destinationRepository.findByRegion(region).stream()
-                .filter(dest -> dest.getStatus() != DestinationStatus.DELETED)
-                .map(this::toDTO)
-                .collect(Collectors.toList());
-    }
 
     @Transactional
     public void deleteDestination(Long id) {
@@ -156,7 +177,7 @@ public class DestinationService {
             destination.setStatus(DestinationStatus.DELETED);
             List<Tour> tours = destination.getTours();
             for (Tour tour : tours) {
-                tour.setStatus(TourStatus.INACTIVE);
+                tour.setStatus(TourStatus.DELETED);
             }
             tourRepository.saveAll(tours);
             destinationRepository.save(destination);

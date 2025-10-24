@@ -33,6 +33,7 @@ public class Tour {
 
     private Double averageRating;
 
+    @Column(nullable = false)
     private Integer totalParticipants = 0;
 
     // 🟢 Trạng thái tour

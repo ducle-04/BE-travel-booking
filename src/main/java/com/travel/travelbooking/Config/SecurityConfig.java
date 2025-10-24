@@ -72,6 +72,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/user/status/{username}").hasRole("ADMIN") // Chỉ ADMIN cập nhật trạng thái
                         .requestMatchers("/api/destinations", "/api/destinations/{id}", "/api/destinations/search", "/api/destinations/region").permitAll()
                         .requestMatchers("/api/destinations/**").hasAnyRole("ADMIN", "STAFF") // Yêu cầu ADMIN hoặc STAFF cho POST, PUT, DELETE
+                        .requestMatchers("/api/tours", "/api/tours/{id}", "/api/tours/search", "/api/tours/destination/{destinationId}").permitAll()
+                        .requestMatchers("/api/tours/**").hasAnyRole("ADMIN", "STAFF")
+                        // Tất cả các yêu cầu khác cần xác thực
                         .anyRequest().authenticated() // Tất cả các yêu cầu khác cần xác thực
                 )
                 .exceptionHandling(exception -> exception
