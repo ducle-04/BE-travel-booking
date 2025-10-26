@@ -1,10 +1,12 @@
 package com.travel.travelbooking.Controller;
 
 import com.travel.travelbooking.Dto.TourDTO;
+import com.travel.travelbooking.Dto.TourStatsDTO;
 import com.travel.travelbooking.Entity.TourStatus;
 import com.travel.travelbooking.Service.TourService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -52,11 +54,17 @@ public class TourController {
     }
 
     @GetMapping("/search")
-    public ResponseEntity<?> searchToursByName(@RequestParam("name") String name) {
+    public ResponseEntity<?> searchToursByName(
+            @RequestParam("name") String name,
+            @RequestParam(value = "page", defaultValue = "0") int page) {
         try {
+            Page<TourDTO> toursPage = tourService.searchToursByName(name, page);
             Map<String, Object> response = new HashMap<>();
             response.put("message", "Tìm kiếm tour thành công");
-            response.put("tours", tourService.searchToursByName(name));
+            response.put("tours", toursPage.getContent());
+            response.put("currentPage", toursPage.getNumber());
+            response.put("totalPages", toursPage.getTotalPages());
+            response.put("totalItems", toursPage.getTotalElements());
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());
@@ -76,6 +84,42 @@ public class TourController {
             return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());
         } catch (Exception e) {
             return ResponseEntity.status(500).body("Lỗi server khi lấy tour theo điểm đến: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/filter")
+    public ResponseEntity<?> filterTours(
+            @RequestParam(value = "destinationName", required = false) String destinationName,
+            @RequestParam(value = "status", required = false) TourStatus status,
+            @RequestParam(value = "minPrice", required = false) Double minPrice,
+            @RequestParam(value = "maxPrice", required = false) Double maxPrice,
+            @RequestParam(value = "page", defaultValue = "0") int page) {
+        try {
+            Page<TourDTO> toursPage = tourService.getFilteredTours(destinationName, status, minPrice, maxPrice, page);
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Lọc tour thành công");
+            response.put("tours", toursPage.getContent());
+            response.put("currentPage", toursPage.getNumber());
+            response.put("totalPages", toursPage.getTotalPages());
+            response.put("totalItems", toursPage.getTotalElements());
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.badRequest().body("Lỗi: " + e.getMessage());
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Lỗi server khi lọc tour: " + e.getMessage());
+        }
+    }
+
+    @GetMapping("/stats")
+    public ResponseEntity<?> getTourStats() {
+        try {
+            TourStatsDTO stats = tourService.getTourStats();
+            Map<String, Object> response = new HashMap<>();
+            response.put("message", "Lấy thống kê tour thành công");
+            response.put("stats", stats);
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            return ResponseEntity.status(500).body("Lỗi server khi lấy thống kê tour: " + e.getMessage());
         }
     }
 

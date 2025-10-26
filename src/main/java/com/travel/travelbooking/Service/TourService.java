@@ -1,12 +1,16 @@
 package com.travel.travelbooking.Service;
 
 import com.travel.travelbooking.Dto.TourDTO;
+import com.travel.travelbooking.Dto.TourStatsDTO;
 import com.travel.travelbooking.Entity.Destination;
 import com.travel.travelbooking.Entity.Tour;
 import com.travel.travelbooking.Entity.TourStatus;
 import com.travel.travelbooking.Repository.DestinationRepository;
 import com.travel.travelbooking.Repository.TourRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -15,7 +19,6 @@ import java.io.IOException;
 import java.net.URL;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 @Service
 public class TourService {
@@ -32,7 +35,6 @@ public class TourService {
     private TourDTO toDTO(Tour tour) {
         TourDTO dto = new TourDTO();
         dto.setId(tour.getId());
-        dto.setName(tour.getName());
         dto.setDestinationId(tour.getDestination().getId());
         dto.setDestinationName(tour.getDestination().getName());
         dto.setDuration(tour.getDuration());
@@ -75,7 +77,6 @@ public class TourService {
             throw new IllegalArgumentException("Giá tour phải lớn hơn 0");
         }
 
-        // Tìm Destination theo tên
         Destination destination = destinationRepository.findByName(tourDTO.getDestinationName())
                 .orElseThrow(() -> new IllegalArgumentException("Điểm đến không tồn tại với tên: " + tourDTO.getDestinationName()));
         if (destination.getStatus() == com.travel.travelbooking.Entity.DestinationStatus.DELETED) {
@@ -117,11 +118,15 @@ public class TourService {
                 .orElseThrow(() -> new RuntimeException("Tour không tồn tại với ID: " + id));
     }
 
-    public List<TourDTO> searchToursByName(String name) {
+    public Page<TourDTO> searchToursByName(String name, int page) {
         if (name == null || name.trim().isEmpty()) {
             throw new IllegalArgumentException("Tên tour không được để trống");
         }
-        return tourRepository.findByNameContainingIgnoreCaseWithCounts(name);
+        if (page < 0) {
+            throw new IllegalArgumentException("Số trang phải lớn hơn hoặc bằng 0");
+        }
+        Pageable pageable = PageRequest.of(page, 10); // Mặc định 10 tour mỗi trang
+        return tourRepository.findByNameContainingIgnoreCaseWithCountsAndPageable(name, pageable);
     }
 
     public List<TourDTO> getToursByDestination(Long destinationId) {
@@ -153,14 +158,12 @@ public class TourService {
         Tour tour = tourRepository.findById(id)
                 .orElseThrow(() -> new RuntimeException("Tour không tồn tại với ID: " + id));
 
-        // Kiểm tra trùng tên tour
         if (!tour.getName().equalsIgnoreCase(tourDTO.getName()) &&
                 tourRepository.findByNameContainingIgnoreCase(tourDTO.getName()).stream()
                         .anyMatch(t -> !t.getId().equals(id))) {
             throw new IllegalArgumentException("Tour với tên '" + tourDTO.getName() + "' đã tồn tại");
         }
 
-        // Tìm điểm đến theo tên
         Destination destination = destinationRepository.findByName(tourDTO.getDestinationName())
                 .orElseThrow(() -> new IllegalArgumentException("Điểm đến không tồn tại với tên: " + tourDTO.getDestinationName()));
 
@@ -168,13 +171,11 @@ public class TourService {
             throw new IllegalArgumentException("Điểm đến đã bị xóa, không thể cập nhật tour");
         }
 
-        // ✅ Chặn bật Active nếu Destination đang INACTIVE
         if (destination.getStatus() == com.travel.travelbooking.Entity.DestinationStatus.INACTIVE &&
                 tourDTO.getStatus() == TourStatus.ACTIVE) {
             throw new IllegalArgumentException("Không thể kích hoạt tour vì điểm đến đang tạm ngưng hoạt động");
         }
 
-        // Cập nhật ảnh
         if (imageFile != null && !imageFile.isEmpty()) {
             String newImageUrl = cloudinaryService.uploadImage(imageFile);
             tour.setImageUrl(newImageUrl);
@@ -187,25 +188,21 @@ public class TourService {
             }
         }
 
-        // Cập nhật các trường hợp khác
         tour.setName(tourDTO.getName());
         tour.setDestination(destination);
         tour.setDuration(tourDTO.getDuration());
         tour.setPrice(tourDTO.getPrice());
         tour.setDescription(tourDTO.getDescription());
 
-        // ✅ Nếu FE không truyền status thì giữ nguyên
         if (tourDTO.getStatus() != null) {
             tour.setStatus(tourDTO.getStatus());
         }
 
-        // Lưu lại
         tourRepository.save(tour);
 
         return tourRepository.findByIdWithCounts(id)
                 .orElseThrow(() -> new RuntimeException("Lỗi khi lấy thông tin tour vừa cập nhật"));
     }
-
 
     @Transactional
     public void deleteTour(Long id) {
@@ -220,5 +217,27 @@ public class TourService {
         } else {
             throw new RuntimeException("Tour không tồn tại với ID: " + id);
         }
+    }
+
+    public Page<TourDTO> getFilteredTours(String destinationName, TourStatus status, Double minPrice, Double maxPrice, int page) {
+        if (page < 0) {
+            throw new IllegalArgumentException("Số trang phải lớn hơn hoặc bằng 0");
+        }
+        if (minPrice != null && minPrice < 0) {
+            throw new IllegalArgumentException("Giá tối thiểu phải lớn hơn hoặc bằng 0");
+        }
+        if (maxPrice != null && maxPrice < 0) {
+            throw new IllegalArgumentException("Giá tối đa phải lớn hơn hoặc bằng 0");
+        }
+        if (minPrice != null && maxPrice != null && minPrice > maxPrice) {
+            throw new IllegalArgumentException("Giá tối thiểu không được lớn hơn giá tối đa");
+        }
+
+        Pageable pageable = PageRequest.of(page, 10);
+        return tourRepository.findFilteredTours(destinationName, status, minPrice, maxPrice, pageable);
+    }
+
+    public TourStatsDTO getTourStats() {
+        return tourRepository.getTourStats();
     }
 }
