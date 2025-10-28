@@ -35,6 +35,7 @@ public class TourService {
     private TourDTO toDTO(Tour tour) {
         TourDTO dto = new TourDTO();
         dto.setId(tour.getId());
+        dto.setName(tour.getName());
         dto.setDestinationId(tour.getDestination().getId());
         dto.setDestinationName(tour.getDestination().getName());
         dto.setDuration(tour.getDuration());
@@ -43,6 +44,7 @@ public class TourService {
         dto.setDescription(tour.getDescription());
         dto.setAverageRating(tour.getAverageRating());
         dto.setTotalParticipants(tour.getTotalParticipants() != null ? tour.getTotalParticipants() : 0);
+        dto.setMaxParticipants(tour.getMaxParticipants()); // THÊM
         dto.setStatus(tour.getStatus());
         dto.setCreatedAt(tour.getCreatedAt());
         return dto;
@@ -58,6 +60,7 @@ public class TourService {
         tour.setDescription(dto.getDescription());
         tour.setAverageRating(dto.getAverageRating());
         tour.setTotalParticipants(dto.getTotalParticipants() != null ? dto.getTotalParticipants() : 0);
+        tour.setMaxParticipants(dto.getMaxParticipants() != null && dto.getMaxParticipants() > 0 ? dto.getMaxParticipants() : 50);
         tour.setStatus(dto.getStatus() != null ? dto.getStatus() : TourStatus.ACTIVE);
         tour.setCreatedAt(dto.getCreatedAt());
         return tour;
@@ -75,6 +78,9 @@ public class TourService {
         }
         if (tourDTO.getPrice() == null || tourDTO.getPrice() <= 0) {
             throw new IllegalArgumentException("Giá tour phải lớn hơn 0");
+        }
+        if (tourDTO.getMaxParticipants() == null || tourDTO.getMaxParticipants() <= 0) {
+            throw new IllegalArgumentException("Số người tối đa phải lớn hơn 0");
         }
 
         Destination destination = destinationRepository.findByName(tourDTO.getDestinationName())
@@ -125,7 +131,7 @@ public class TourService {
         if (page < 0) {
             throw new IllegalArgumentException("Số trang phải lớn hơn hoặc bằng 0");
         }
-        Pageable pageable = PageRequest.of(page, 10); // Mặc định 10 tour mỗi trang
+        Pageable pageable = PageRequest.of(page, 10);
         return tourRepository.findByNameContainingIgnoreCaseWithCountsAndPageable(name, pageable);
     }
 
@@ -153,6 +159,9 @@ public class TourService {
         }
         if (tourDTO.getPrice() == null || tourDTO.getPrice() <= 0) {
             throw new IllegalArgumentException("Giá tour phải lớn hơn 0");
+        }
+        if (tourDTO.getMaxParticipants() == null || tourDTO.getMaxParticipants() <= 0) {
+            throw new IllegalArgumentException("Số người tối đa phải lớn hơn 0");
         }
 
         Tour tour = tourRepository.findById(id)
@@ -193,6 +202,7 @@ public class TourService {
         tour.setDuration(tourDTO.getDuration());
         tour.setPrice(tourDTO.getPrice());
         tour.setDescription(tourDTO.getDescription());
+        tour.setMaxParticipants(tourDTO.getMaxParticipants()); // CẬP NHẬT
 
         if (tourDTO.getStatus() != null) {
             tour.setStatus(tourDTO.getStatus());

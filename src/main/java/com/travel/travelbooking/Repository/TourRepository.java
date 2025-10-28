@@ -24,7 +24,7 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
         SELECT new com.travel.travelbooking.Dto.TourDTO(
             t.id, t.name, d.id, d.name, t.duration, t.price, t.imageUrl, 
             t.description, t.averageRating, COALESCE(t.totalParticipants, 0), t.status, 
-            t.createdAt, COUNT(b), COUNT(r)
+            t.createdAt, COUNT(b), COUNT(r), t.maxParticipants
         )
         FROM Tour t
         LEFT JOIN t.destination d
@@ -32,16 +32,16 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
         LEFT JOIN t.reviews r
         WHERE t.status != com.travel.travelbooking.Entity.TourStatus.DELETED
         GROUP BY t.id, t.name, d.id, d.name, t.duration, t.price, t.imageUrl, 
-                 t.description, t.averageRating, t.totalParticipants, t.status, t.createdAt
+                 t.description, t.averageRating, t.totalParticipants, t.status, t.createdAt, t.maxParticipants
         ORDER BY t.id ASC
-    """)
+        """)
     List<TourDTO> findAllWithCounts();
 
     @Query("""
         SELECT new com.travel.travelbooking.Dto.TourDTO(
             t.id, t.name, d.id, d.name, t.duration, t.price, t.imageUrl, 
             t.description, t.averageRating, COALESCE(t.totalParticipants, 0), t.status, 
-            t.createdAt, COUNT(b), COUNT(r)
+            t.createdAt, COUNT(b), COUNT(r), t.maxParticipants
         )
         FROM Tour t
         LEFT JOIN t.destination d
@@ -49,15 +49,15 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
         LEFT JOIN t.reviews r
         WHERE t.id = :id AND t.status != com.travel.travelbooking.Entity.TourStatus.DELETED
         GROUP BY t.id, t.name, d.id, d.name, t.duration, t.price, t.imageUrl, 
-                 t.description, t.averageRating, t.totalParticipants, t.status, t.createdAt
-    """)
+                 t.description, t.averageRating, t.totalParticipants, t.status, t.createdAt, t.maxParticipants
+        """)
     Optional<TourDTO> findByIdWithCounts(Long id);
 
     @Query("""
         SELECT new com.travel.travelbooking.Dto.TourDTO(
             t.id, t.name, d.id, d.name, t.duration, t.price, t.imageUrl, 
             t.description, t.averageRating, COALESCE(t.totalParticipants, 0), t.status, 
-            t.createdAt, COUNT(b), COUNT(r)
+            t.createdAt, COUNT(b), COUNT(r), t.maxParticipants
         )
         FROM Tour t
         LEFT JOIN t.destination d
@@ -66,16 +66,16 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
         WHERE LOWER(t.name) LIKE LOWER(CONCAT('%', :name, '%')) 
         AND t.status != com.travel.travelbooking.Entity.TourStatus.DELETED
         GROUP BY t.id, t.name, d.id, d.name, t.duration, t.price, t.imageUrl, 
-                 t.description, t.averageRating, t.totalParticipants, t.status, t.createdAt
+                 t.description, t.averageRating, t.totalParticipants, t.status, t.createdAt, t.maxParticipants
         ORDER BY t.id ASC
-    """)
+        """)
     List<TourDTO> findByNameContainingIgnoreCaseWithCounts(String name);
 
     @Query("""
         SELECT new com.travel.travelbooking.Dto.TourDTO(
             t.id, t.name, d.id, d.name, t.duration, t.price, t.imageUrl, 
             t.description, t.averageRating, COALESCE(t.totalParticipants, 0), t.status, 
-            t.createdAt, COUNT(b), COUNT(r)
+            t.createdAt, COUNT(b), COUNT(r), t.maxParticipants
         )
         FROM Tour t
         LEFT JOIN t.destination d
@@ -83,16 +83,16 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
         LEFT JOIN t.reviews r
         WHERE t.destination = :destination AND t.status != com.travel.travelbooking.Entity.TourStatus.DELETED
         GROUP BY t.id, t.name, d.id, d.name, t.duration, t.price, t.imageUrl, 
-                 t.description, t.averageRating, t.totalParticipants, t.status, t.createdAt
+                 t.description, t.averageRating, t.totalParticipants, t.status, t.createdAt, t.maxParticipants
         ORDER BY t.id ASC
-    """)
+        """)
     List<TourDTO> findByDestinationWithCounts(Destination destination);
 
     @Query("""
         SELECT new com.travel.travelbooking.Dto.TourDTO(
             t.id, t.name, d.id, d.name, t.duration, t.price, t.imageUrl, 
             t.description, t.averageRating, COALESCE(t.totalParticipants, 0), t.status, 
-            t.createdAt, COUNT(b), COUNT(r)
+            t.createdAt, COUNT(b), COUNT(r), t.maxParticipants
         )
         FROM Tour t
         LEFT JOIN t.destination d
@@ -104,9 +104,9 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
         AND (:maxPrice IS NULL OR t.price <= :maxPrice)
         AND t.status != com.travel.travelbooking.Entity.TourStatus.DELETED
         GROUP BY t.id, t.name, d.id, d.name, t.duration, t.price, t.imageUrl, 
-                 t.description, t.averageRating, t.totalParticipants, t.status, t.createdAt
+                 t.description, t.averageRating, t.totalParticipants, t.status, t.createdAt, t.maxParticipants
         ORDER BY t.id ASC
-    """)
+        """)
     Page<TourDTO> findFilteredTours(String destinationName, TourStatus status, Double minPrice, Double maxPrice, Pageable pageable);
 
     @Query("""
@@ -119,24 +119,24 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
         FROM Tour t
         LEFT JOIN t.bookings b
         WHERE t.status != com.travel.travelbooking.Entity.TourStatus.DELETED
-    """)
+        """)
     TourStatsDTO getTourStats();
 
     @Query("""
-    SELECT new com.travel.travelbooking.Dto.TourDTO(
-        t.id, t.name, d.id, d.name, t.duration, t.price, t.imageUrl, 
-        t.description, t.averageRating, COALESCE(t.totalParticipants, 0), t.status, 
-        t.createdAt, COUNT(b), COUNT(r)
-    )
-    FROM Tour t
-    LEFT JOIN t.destination d
-    LEFT JOIN t.bookings b ON b.status = 'CONFIRMED'
-    LEFT JOIN t.reviews r
-    WHERE LOWER(t.name) LIKE LOWER(CONCAT('%', :name, '%')) 
-    AND t.status != com.travel.travelbooking.Entity.TourStatus.DELETED
-    GROUP BY t.id, t.name, d.id, d.name, t.duration, t.price, t.imageUrl, 
-             t.description, t.averageRating, t.totalParticipants, t.status, t.createdAt
-    ORDER BY t.id ASC
-""")
+        SELECT new com.travel.travelbooking.Dto.TourDTO(
+            t.id, t.name, d.id, d.name, t.duration, t.price, t.imageUrl, 
+            t.description, t.averageRating, COALESCE(t.totalParticipants, 0), t.status, 
+            t.createdAt, COUNT(b), COUNT(r), t.maxParticipants
+        )
+        FROM Tour t
+        LEFT JOIN t.destination d
+        LEFT JOIN t.bookings b ON b.status = 'CONFIRMED'
+        LEFT JOIN t.reviews r
+        WHERE LOWER(t.name) LIKE LOWER(CONCAT('%', :name, '%')) 
+        AND t.status != com.travel.travelbooking.Entity.TourStatus.DELETED
+        GROUP BY t.id, t.name, d.id, d.name, t.duration, t.price, t.imageUrl, 
+                 t.description, t.averageRating, t.totalParticipants, t.status, t.createdAt, t.maxParticipants
+        ORDER BY t.id ASC
+        """)
     Page<TourDTO> findByNameContainingIgnoreCaseWithCountsAndPageable(String name, Pageable pageable);
 }

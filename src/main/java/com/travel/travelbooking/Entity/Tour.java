@@ -21,7 +21,7 @@ public class Tour {
     private Destination destination;
 
     @Column(nullable = false)
-    private String duration; // Ví dụ: "3 ngày 2 đêm"
+    private String duration;
 
     @Column(nullable = false)
     private Double price;
@@ -36,7 +36,9 @@ public class Tour {
     @Column(nullable = false)
     private Integer totalParticipants = 0;
 
-    // 🟢 Trạng thái tour
+    @Column(nullable = false)
+    private Integer maxParticipants;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private TourStatus status;
@@ -53,6 +55,9 @@ public class Tour {
     protected void onCreate() {
         createdAt = LocalDateTime.now();
         averageRating = 0.0;
-        status = TourStatus.ACTIVE; // mặc định hoạt động
+        status = TourStatus.ACTIVE;
+        if (maxParticipants == null || maxParticipants <= 0) {
+            maxParticipants = 50; // Mặc định 50 nếu không nhập
+        }
     }
 }
