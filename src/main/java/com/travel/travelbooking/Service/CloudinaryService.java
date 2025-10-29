@@ -29,4 +29,18 @@ public class CloudinaryService {
         ));
         return (String) uploadResult.get("secure_url");
     }
+
+    public String uploadVideo(MultipartFile file) throws IOException {
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("File video không được rỗng");
+        }
+        if (!file.getContentType().startsWith("video/")) {
+            throw new IllegalArgumentException("Chỉ hỗ trợ file video (mp4, mov, ...)");
+        }
+        Map uploadResult = cloudinary.uploader().upload(file.getBytes(), ObjectUtils.asMap(
+                "resource_type", "video",
+                "folder", "tours/videos"
+        ));
+        return (String) uploadResult.get("secure_url");
+    }
 }

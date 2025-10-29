@@ -51,6 +51,9 @@ public class Tour {
 
     private LocalDateTime createdAt;
 
+    @OneToOne(mappedBy = "tour", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private TourDetail detail;
+
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();

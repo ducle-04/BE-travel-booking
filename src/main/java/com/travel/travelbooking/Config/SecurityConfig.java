@@ -74,7 +74,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/destinations/**").hasAnyRole("ADMIN", "STAFF") // Yêu cầu ADMIN hoặc STAFF cho POST, PUT, DELETE
                         .requestMatchers("/api/tours", "/api/tours/{id}", "/api/tours/search", "/api/tours/destination/{destinationId}").permitAll()
                         .requestMatchers("/api/tours/**").hasAnyRole("ADMIN", "STAFF")
-                        // Tất cả các yêu cầu khác cần xác thực
+                        .requestMatchers("/api/tours/{tourId}/details").hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers("/api/tours/{tourId}/details/images").hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers("/api/tours/{tourId}/details/videos").hasAnyRole("ADMIN", "STAFF")
                         .anyRequest().authenticated() // Tất cả các yêu cầu khác cần xác thực
                 )
                 .exceptionHandling(exception -> exception

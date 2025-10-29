@@ -21,6 +21,7 @@ public class TourDTO {
     private LocalDateTime createdAt;
     private Long bookingsCount;
     private Long reviewsCount;
+    private TourDetailDTO tourDetail;
 
     public TourDTO() {}
 

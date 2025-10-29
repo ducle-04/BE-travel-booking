@@ -147,7 +147,7 @@ public class DestinationService {
 
         destination.setStatus(newStatus);
 
-        // ✅ Đồng bộ trạng thái Tour theo đúng nghiệp vụ
+        // Đồng bộ trạng thái Tour theo đúng nghiệp vụ
         List<Tour> tours = destination.getTours();
 
         if (newStatus == DestinationStatus.INACTIVE) {
@@ -156,7 +156,7 @@ public class DestinationService {
             }
             tourRepository.saveAll(tours);
         }
-        // ✅ Nếu ACTIVE → giữ nguyên trạng thái tour (KHÔNG tự bật lại)
+        // Nếu ACTIVE → giữ nguyên trạng thái tour (KHÔNG tự bật lại)
 
         Destination updatedDestination = destinationRepository.save(destination);
 
