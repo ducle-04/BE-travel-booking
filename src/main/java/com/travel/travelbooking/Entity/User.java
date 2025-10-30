@@ -17,7 +17,7 @@ public class User {
     @Column(nullable = false, unique = true)
     private String username;
 
-    @Column(nullable = false)
+    @Column(nullable = true)
     private String password;
 
     @Column(nullable = false, unique = true)
@@ -35,6 +35,12 @@ public class User {
 
     @Column(nullable = false)
     private LocalDateTime createdAt;
+
+    @Column(name = "provider", nullable = true)
+    private String provider;
+
+    @Column(name = "social_id", nullable = true)
+    private String socialId;
 
     @ManyToMany(fetch = FetchType.EAGER)
     @JoinTable(

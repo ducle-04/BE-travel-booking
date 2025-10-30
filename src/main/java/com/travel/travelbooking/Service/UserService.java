@@ -179,18 +179,11 @@ public class UserService {
         return userRepository.save(user);
     }
 
-    // Helper: Tạo role nếu chưa tồn tại
+    @Transactional
     private Set<Role> getOrCreateRoles(String... roleNames) {
-        Set<Role> roles = new HashSet<>();
-        for (String roleName : roleNames) {
-            Role role = roleRepository.findByName(roleName);
-            if (role == null) {
-                role = new Role();
-                role.setName(roleName);
-                roleRepository.save(role);
-            }
-            roles.add(role);
-        }
-        return roles;
+        return Arrays.stream(roleNames)
+                .map(name -> roleRepository.findByName(name)
+                        .orElseGet(() -> roleRepository.save(new Role(name)))) // DÙNG new Role("USER")
+                .collect(Collectors.toSet());
     }
 }
