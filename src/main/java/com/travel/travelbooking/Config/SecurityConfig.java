@@ -84,6 +84,7 @@ public class SecurityConfig {
 
                         // Các endpoint yêu cầu quyền
                         .requestMatchers("/api/user/profile").authenticated()
+                        .requestMatchers("/api/user/avatar").authenticated()
                         .requestMatchers("/api/user/{username}", "/api/user/list").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers("/api/user/create", "/api/user/staff/update/{username}",
                                 "/api/user/delete/{id}", "/api/user/status/{username}").hasRole("ADMIN")
@@ -120,7 +121,7 @@ public class SecurityConfig {
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration config = new CorsConfiguration();
         config.setAllowedOrigins(Collections.singletonList("http://localhost:5173"));
-        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS"));
+        config.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"));
         config.setAllowedHeaders(Collections.singletonList("*"));
         config.setAllowCredentials(true);
 

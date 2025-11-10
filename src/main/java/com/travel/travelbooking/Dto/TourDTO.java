@@ -1,24 +1,49 @@
 package com.travel.travelbooking.Dto;
 
 import com.travel.travelbooking.Entity.TourStatus;
+import jakarta.validation.constraints.*;
 import lombok.Data;
 import java.time.LocalDateTime;
 
 @Data
 public class TourDTO {
     private Long id;
+
+    @NotBlank(message = "Tên tour không được để trống")
+    @Size(max = 150, message = "Tên tour không được vượt quá 150 ký tự")
     private String name;
+
     private Long destinationId;
+
+    @NotBlank(message = "Tên điểm đến không được để trống")
+    @Size(max = 100, message = "Tên điểm đến không được vượt quá 100 ký tự")
     private String destinationName;
+
+    @NotBlank(message = "Thời gian tour không được để trống")
+    @Pattern(regexp = "^\\d+ (ngày|đêm|ngày đêm)$", message = "Thời gian phải có định dạng: 'số ngày', 'số đêm' hoặc 'số ngày đêm'")
     private String duration;
+
+    @NotNull(message = "Giá tour không được để trống")
+    @Positive(message = "Giá tour phải lớn hơn 0")
+    @Digits(integer = 10, fraction = 2, message = "Giá tour không hợp lệ")
     private Double price;
+
     private String imageUrl;
+
+    @Size(max = 2000, message = "Mô tả không được vượt quá 2000 ký tự")
     private String description;
+
     private Double averageRating;
     private Integer totalParticipants;
+
+    @NotNull(message = "Số người tối đa không được để trống")
+    @Min(value = 1, message = "Số người tối đa phải ít nhất là 1")
     private Integer maxParticipants;
+
     private TourStatus status;
     private LocalDateTime createdAt;
+
+    // Chỉ có trong response
     private Long bookingsCount;
     private Long reviewsCount;
     private TourDetailDTO tourDetail;
