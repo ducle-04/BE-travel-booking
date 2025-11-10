@@ -3,7 +3,6 @@ package com.travel.travelbooking.Entity;
 import jakarta.persistence.*;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import lombok.*;
-
 import java.util.Set;
 
 @Entity

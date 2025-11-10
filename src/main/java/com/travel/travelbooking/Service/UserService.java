@@ -1,16 +1,18 @@
 package com.travel.travelbooking.Service;
 
+import com.travel.travelbooking.Dto.UserDTO;
 import com.travel.travelbooking.Entity.Role;
 import com.travel.travelbooking.Entity.User;
 import com.travel.travelbooking.Entity.UserStatus;
-import com.travel.travelbooking.Dto.UserDTO;
 import com.travel.travelbooking.Repository.RoleRepository;
 import com.travel.travelbooking.Repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -20,6 +22,9 @@ public class UserService {
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
+
+    @Autowired
+    private CloudinaryService cloudinaryService;
 
     @Autowired
     public UserService(UserRepository userRepository,
@@ -124,12 +129,6 @@ public class UserService {
             throw new RuntimeException("Chỉ có thể cập nhật thông tin của Staff");
         }
 
-        if (!dto.getEmail().equals(user.getEmail()) &&
-                userRepository.existsByEmail(dto.getEmail())) {
-            throw new RuntimeException("Email đã được sử dụng");
-        }
-
-        user.setEmail(dto.getEmail());
         user.setFullname(dto.getFullname());
         user.setPhoneNumber(dto.getPhoneNumber());
         user.setStatus(dto.getStatus() != null ? dto.getStatus() : user.getStatus());
@@ -148,12 +147,6 @@ public class UserService {
         User user = userRepository.findByUsername(username);
         if (user == null || user.getStatus() == UserStatus.DELETED) return null;
 
-        if (!dto.getEmail().equals(user.getEmail()) &&
-                userRepository.existsByEmail(dto.getEmail())) {
-            throw new RuntimeException("Email đã được sử dụng");
-        }
-
-        user.setEmail(dto.getEmail());
         user.setFullname(dto.getFullname());
         user.setPhoneNumber(dto.getPhoneNumber());
 
@@ -176,6 +169,34 @@ public class UserService {
         }
 
         user.setStatus(newStatus);
+        return userRepository.save(user);
+    }
+
+    // 10. Cập nhật avatar (upload mới hoặc xóa)
+    @Transactional
+    public User uploadAvatar(String username, MultipartFile file) throws IOException {
+        User user = userRepository.findByUsername(username);
+        if (user == null || user.getStatus() == UserStatus.DELETED) {
+            throw new RuntimeException("User không tồn tại");
+        }
+
+        if (file == null || file.isEmpty()) {
+            throw new IllegalArgumentException("File không được để trống");
+        }
+
+        String avatarUrl = cloudinaryService.uploadImage(file);
+        user.setAvatarUrl(avatarUrl);
+        return userRepository.save(user);
+    }
+
+    @Transactional
+    public User deleteAvatar(String username) {
+        User user = userRepository.findByUsername(username);
+        if (user == null || user.getStatus() == UserStatus.DELETED) {
+            throw new RuntimeException("User không tồn tại");
+        }
+
+        user.setAvatarUrl(null);
         return userRepository.save(user);
     }
 

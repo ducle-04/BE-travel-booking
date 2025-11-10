@@ -1,5 +1,10 @@
 package com.travel.travelbooking.Controller;
 
+import com.travel.travelbooking.Config.JwtUtil;
+import com.travel.travelbooking.Dto.LoginDTO;
+import com.travel.travelbooking.Dto.RegisterDTO;
+import com.travel.travelbooking.Entity.User;
+import com.travel.travelbooking.Service.UserService;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -8,12 +13,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.*;
 
-import com.travel.travelbooking.Config.JwtUtil;
-import com.travel.travelbooking.Dto.LoginDTO;
-import com.travel.travelbooking.Dto.RegisterDTO;
-import com.travel.travelbooking.Entity.User;
-import com.travel.travelbooking.Entity.UserStatus;
-import com.travel.travelbooking.Service.UserService;
+
 
 import jakarta.validation.Valid;
 import java.util.HashMap;
@@ -55,27 +55,19 @@ public class AuthController {
         try {
             UserDetails userDetails = userDetailsService.loadUserByUsername(loginDTO.getUsername());
 
-            // Kiểm tra mật khẩu
             if (!passwordEncoder.matches(loginDTO.getPassword(), userDetails.getPassword())) {
-                return ResponseEntity.status(401).body("Thông tin đăng nhập không hợp lệ");
+                return ResponseEntity.status(401).body("Mật khẩu không đúng");
             }
 
-            // Kiểm tra trạng thái tài khoản
-            User user = userService.findByUsername(loginDTO.getUsername());
-            if (user == null || user.getStatus() != UserStatus.ACTIVE) {
-                return ResponseEntity.status(403).body("Tài khoản không hoạt động");
-            }
-
-            // Tạo token và lấy danh sách roles
             Set<String> roles = userDetails.getAuthorities().stream()
                     .map(auth -> auth.getAuthority().replace("ROLE_", ""))
                     .collect(Collectors.toSet());
-            String token = jwtUtil.generateToken(loginDTO.getUsername(), roles);
 
-            // Tạo phản hồi chứa token, username và roles
+            String token = jwtUtil.generateToken(userDetails.getUsername(), roles);
+
             Map<String, Object> response = new HashMap<>();
             response.put("token", token);
-            response.put("username", loginDTO.getUsername());
+            response.put("username", userDetails.getUsername());
             response.put("roles", roles);
 
             return ResponseEntity.ok(response);

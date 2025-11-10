@@ -1,19 +1,20 @@
 package com.travel.travelbooking.Controller;
 
+import com.travel.travelbooking.Dto.UserDTO;
 import com.travel.travelbooking.Entity.Role;
 import com.travel.travelbooking.Entity.User;
-import com.travel.travelbooking.Entity.UserStatus;
-import com.travel.travelbooking.Dto.UserDTO;
 import com.travel.travelbooking.Service.UserService;
-
 import jakarta.validation.Valid;
 
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -44,25 +45,20 @@ public class UserController {
     }
 
     // 2. Cập nhật hồ sơ người dùng hiện tại (User, Staff, Admin)
-    @PutMapping("/profile")
-    public ResponseEntity<UserDTO> updateProfile(@AuthenticationPrincipal UserDetails userDetails,
-                                                 @Valid @RequestBody UserDTO dto) {
+    @PutMapping(value = "/profile", consumes = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<UserDTO> updateProfile(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @Valid @RequestBody UserDTO dto) {
+
         if (userDetails == null) {
             return ResponseEntity.status(401).build();
         }
 
         String username = userDetails.getUsername();
-        if (!username.equals(dto.getUsername())) {
-            return ResponseEntity.status(403).build();
-        }
-
         User updatedUser = userService.updateOwnProfile(username, dto);
-        if (updatedUser == null) {
-            return ResponseEntity.notFound().build();
-        }
-
         return ResponseEntity.ok(toDTO(updatedUser));
     }
+
 
     // 3. Lấy danh sách người dùng với bộ lọc vai trò
     @GetMapping("/list")
@@ -128,6 +124,37 @@ public class UserController {
         }
     }
 
+    // 9. Upload avatar mới
+    @PutMapping(value = "/avatar", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<UserDTO> uploadAvatar(
+            @AuthenticationPrincipal UserDetails userDetails,
+            @RequestParam("avatar") MultipartFile avatar) throws IOException {
+
+        if (userDetails == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        if (avatar == null || avatar.isEmpty()) {
+            return ResponseEntity.badRequest().body(null);
+        }
+
+        String username = userDetails.getUsername();
+        User updatedUser = userService.uploadAvatar(username, avatar);
+        return ResponseEntity.ok(toDTO(updatedUser));
+    }
+
+    // 10. Xóa avatar (đặt về null)
+    @DeleteMapping("/avatar")
+    public ResponseEntity<UserDTO> deleteAvatar(@AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).build();
+        }
+
+        String username = userDetails.getUsername();
+        User updatedUser = userService.deleteAvatar(username);
+        return ResponseEntity.ok(toDTO(updatedUser));
+    }
+
     // Helper chuyển từ Entity -> DTO
     private UserDTO toDTO(User user) {
         Set<String> roles = user.getRoles().stream()
@@ -137,12 +164,13 @@ public class UserController {
                 user.getId(),
                 user.getUsername(),
                 user.getEmail(),
-                null, // Không trả mật khẩu trong DTO
+                null,
                 user.getFullname(),
                 user.getPhoneNumber(),
                 user.getStatus(),
                 user.getCreatedAt(),
-                roles
+                roles,
+                user.getAvatarUrl()
         );
     }
 }

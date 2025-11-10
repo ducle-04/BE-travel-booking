@@ -1,4 +1,3 @@
-// src/main/java/com/travel/travelbooking/Dto/TourDetailDTO.java
 package com.travel.travelbooking.Dto;
 
 import lombok.Data;

@@ -36,6 +36,9 @@ public class User {
     @Column(nullable = false)
     private LocalDateTime createdAt;
 
+    @Column(name = "avatar_url", nullable = true)
+    private String avatarUrl;
+
     @Column(name = "provider", nullable = true)
     private String provider;
 

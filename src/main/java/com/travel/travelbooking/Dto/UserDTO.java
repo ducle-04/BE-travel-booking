@@ -18,7 +18,6 @@ public class UserDTO {
     @Pattern(regexp = "^[a-zA-Z0-9_-]+$", message = "Tên người dùng chỉ được chứa chữ cái, số, dấu gạch dưới hoặc gạch ngang")
     private String username;
 
-    @NotBlank(message = "Email không được để trống")
     @Email(message = "Email không đúng định dạng")
     @Size(max = 100, message = "Email không được vượt quá 100 ký tự")
     private String email;
@@ -39,12 +38,14 @@ public class UserDTO {
 
     private LocalDateTime createdAt;
 
+    private String avatarUrl;
+
     private Set<String> roles;
 
     public UserDTO() {}
 
     public UserDTO(Long id, String username, String email, String password, String fullname,
-                   String phoneNumber, UserStatus status, LocalDateTime createdAt, Set<String> roles) {
+                   String phoneNumber, UserStatus status, LocalDateTime createdAt, Set<String> roles, String avatarUrl) {
         this.id = id;
         this.username = username;
         this.email = email;
@@ -54,5 +55,6 @@ public class UserDTO {
         this.status = status;
         this.createdAt = createdAt;
         this.roles = roles;
+        this.avatarUrl = avatarUrl;
     }
 }

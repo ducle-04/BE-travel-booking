@@ -92,11 +92,11 @@ public class SecurityConfig {
                         // Còn lại: yêu cầu xác thực
                         .anyRequest().authenticated()
                 )
-                // ✅ Cấu hình đăng nhập OAuth2
+                // Cấu hình đăng nhập OAuth2
                 .oauth2Login(oauth2 -> oauth2
                         .successHandler(oAuth2SuccessHandler)
                 )
-                // ✅ Xử lý lỗi truy cập
+                // Xử lý lỗi truy cập
                 .exceptionHandling(exception -> exception
                         .authenticationEntryPoint((req, res, ex) -> {
                             res.setStatus(HttpStatus.UNAUTHORIZED.value());
@@ -109,7 +109,7 @@ public class SecurityConfig {
                             res.getWriter().write("{\"error\": \"Không có quyền truy cập\"}");
                         })
                 )
-                // ✅ Thêm JWT filter
+                // Thêm JWT filter
                 .addFilterBefore(jwtAuthenticationFilter(), UsernamePasswordAuthenticationFilter.class);
 
         return http.build();
