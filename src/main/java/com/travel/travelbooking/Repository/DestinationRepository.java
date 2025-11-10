@@ -54,5 +54,19 @@ public interface DestinationRepository extends JpaRepository<Destination, Long> 
     """)
     List<DestinationDTO> findByNameContainingIgnoreCaseWithTourCount(String name);
 
+    // Lọc khu vực kèm số lượng tour đang hoạt động
+    @Query("""
+    SELECT new com.travel.travelbooking.Dto.DestinationDTO(
+        d.id, d.name, d.description, d.imageUrl, d.status, d.region, COUNT(t)
+    )
+    FROM Destination d
+    LEFT JOIN d.tours t ON t.status = com.travel.travelbooking.Entity.TourStatus.ACTIVE
+    WHERE d.region = :region
+      AND d.status != com.travel.travelbooking.Entity.DestinationStatus.DELETED
+    GROUP BY d.id, d.name, d.description, d.imageUrl, d.status, d.region
+    ORDER BY d.id ASC
+    """)
+    List<DestinationDTO> findByRegionWithTourCount(Region region);
+
     Optional<Destination> findByName(String name);
 }

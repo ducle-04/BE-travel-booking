@@ -66,11 +66,8 @@ public class DestinationService {
     }
 
     public List<DestinationDTO> getDestinationsByRegion(Region region) {
-        return destinationRepository.findByRegion(region).stream()
-                .filter(d -> d.getStatus() != DestinationStatus.DELETED)
-                .map(d -> new DestinationDTO(d.getId(), d.getName(), d.getDescription(),
-                        d.getImageUrl(), d.getStatus(), d.getRegion()))
-                .toList();
+        if (region == null) throw new IllegalArgumentException("Vùng miền không được để trống");
+        return destinationRepository.findByRegionWithTourCount(region);
     }
 
     // === UPDATE ===
