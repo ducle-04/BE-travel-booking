@@ -13,7 +13,7 @@ public class Destination {
     private Long id;
 
     @Column(nullable = false)
-    private String name;  // Ví dụ: "Đà Nẵng", "Phú Quốc"
+    private String name;
 
     @Column(length = 2000)
     private String description;
@@ -25,7 +25,7 @@ public class Destination {
     private DestinationStatus status;
 
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false) // Đảm bảo region không null
+    @Column(nullable = false)
     private Region region;
 
     @OneToMany(mappedBy = "destination", cascade = CascadeType.ALL, orphanRemoval = true)
