@@ -13,7 +13,6 @@ public class UserDTO {
     @Positive(message = "ID phải là số dương")
     private Long id;
 
-    @NotBlank(message = "Tên người dùng không được để trống")
     @Size(min = 3, max = 50, message = "Tên người dùng phải từ 3 đến 50 ký tự")
     @Pattern(regexp = "^[a-zA-Z0-9_-]+$", message = "Tên người dùng chỉ được chứa chữ cái, số, dấu gạch dưới hoặc gạch ngang")
     private String username;
