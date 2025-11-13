@@ -1,4 +1,4 @@
-package com.travel.travelbooking.Entity.Repository;
+package com.travel.travelbooking.Repository;
 
 import com.travel.travelbooking.Entity.Blog;
 import com.travel.travelbooking.Entity.BlogStatus;
