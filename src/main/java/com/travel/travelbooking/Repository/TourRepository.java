@@ -110,16 +110,16 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
     Page<TourDTO> findFilteredTours(String destinationName, TourStatus status, Double minPrice, Double maxPrice, Pageable pageable);
 
     @Query("""
-        SELECT new com.travel.travelbooking.Dto.TourStatsDTO(
-            COUNT(t),
-            COUNT(CASE WHEN t.status = 'ACTIVE' THEN 1 END),
-            COUNT(CASE WHEN t.status = 'INACTIVE' THEN 1 END),
-            COALESCE(SUM(CASE WHEN b.status = 'CONFIRMED' THEN 1 ELSE 0 END), 0)
-        )
-        FROM Tour t
-        LEFT JOIN t.bookings b
-        WHERE t.status != com.travel.travelbooking.Entity.TourStatus.DELETED
-        """)
+    SELECT new com.travel.travelbooking.Dto.TourStatsDTO(
+        COUNT(DISTINCT t.id),
+        COUNT(DISTINCT CASE WHEN t.status = 'ACTIVE' THEN t.id END),
+        COUNT(DISTINCT CASE WHEN t.status = 'INACTIVE' THEN t.id END),
+        COALESCE(SUM(CASE WHEN b.status = 'CONFIRMED' THEN 1 ELSE 0 END), 0)
+    )
+    FROM Tour t
+    LEFT JOIN t.bookings b
+    WHERE t.status != com.travel.travelbooking.Entity.TourStatus.DELETED
+    """)
     TourStatsDTO getTourStats();
 
     @Query("""
