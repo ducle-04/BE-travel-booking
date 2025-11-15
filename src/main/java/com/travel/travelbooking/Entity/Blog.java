@@ -38,6 +38,9 @@ public class Blog {
     @JsonManagedReference
     private List<BlogImage> images;
 
+    @OneToMany(mappedBy = "blog", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<BlogComment> comments;
+
     // Ngày tạo
     @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt = LocalDateTime.now();
