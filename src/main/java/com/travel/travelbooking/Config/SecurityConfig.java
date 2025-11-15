@@ -89,7 +89,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/user/create", "/api/user/staff/update/{username}",
                                 "/api/user/delete/{id}", "/api/user/status/{username}").hasRole("ADMIN")
                         .requestMatchers("/api/destinations/**", "/api/tours/**").hasAnyRole("ADMIN", "STAFF")
-
+                        .requestMatchers("/api/bookings", "/api/bookings/{id}/cancel", "/api/bookings/my").authenticated()
+                        .requestMatchers("/api/bookings/pending", "/api/bookings/{id}/confirm", "/api/bookings/{id}/reject", "/api/bookings/{id}/cancel/approve",
+                                "/api/bookings/{id}/cancel/reject",
+                                "/api/bookings/{id}/complete",
+                                "/api/bookings/{id}").hasAnyRole("ADMIN", "STAFF")
                         // Còn lại: yêu cầu xác thực
                         .anyRequest().authenticated()
                 )

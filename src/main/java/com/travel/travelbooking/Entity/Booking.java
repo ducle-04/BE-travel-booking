@@ -17,39 +17,39 @@ public class Booking {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Người đặt tour
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    // Tour được đặt
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tour_id", nullable = false)
     private Tour tour;
 
-    // Số lượng người đi
     @Column(nullable = false)
     private int numberOfPeople;
 
-    // Tổng tiền
     @Column(nullable = false)
     private Double totalPrice;
 
-    // Ngày khởi hành
     private LocalDateTime startDate;
 
-    // Ngày đặt
     private LocalDateTime bookingDate;
 
-    // Trạng thái đặt tour
     @Enumerated(EnumType.STRING)
+    @Column(
+            columnDefinition = "ENUM('PENDING','CONFIRMED','CANCEL_REQUEST','CANCELLED','REJECTED','COMPLETED','DELETED')",
+            nullable = false
+    )
     private BookingStatus status;
+
 
     private String note;
 
     @PrePersist
     protected void onCreate() {
         bookingDate = LocalDateTime.now();
-        if (status == null) status = BookingStatus.PENDING;
+        if (status == null) {
+            status = BookingStatus.PENDING;
+        }
     }
 }

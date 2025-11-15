@@ -1,11 +1,13 @@
 package com.travel.travelbooking.Controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.travel.travelbooking.Dto.DestinationDTO;
 import com.travel.travelbooking.Entity.Region;
 import com.travel.travelbooking.Payload.ApiResponse;
 import com.travel.travelbooking.Service.DestinationService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -52,27 +54,33 @@ public class DestinationController {
         ));
     }
 
-    @PostMapping(consumes = "multipart/form-data")
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
     public ResponseEntity<?> createDestination(
-            @Valid @RequestPart("destination") DestinationDTO dto,
+            @RequestPart("destination") String destinationJson,
             @RequestPart(value = "image", required = false) MultipartFile imageFile) throws IOException {
 
-        var created = destinationService.createDestination(dto, imageFile);
-        return ResponseEntity.status(201)
-                .body(new ApiResponse<>("Tạo điểm đến thành công", created));
+        ObjectMapper mapper = new ObjectMapper();
+        DestinationDTO dto = mapper.readValue(destinationJson, DestinationDTO.class);
+
+        DestinationDTO created = destinationService.createDestination(dto, imageFile);
+        return ResponseEntity.status(201).body(new ApiResponse<>("Tạo điểm đến thành công", created));
     }
 
-    @PutMapping(value = "/{id}", consumes = "multipart/form-data")
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
     public ResponseEntity<?> updateDestination(
             @PathVariable Long id,
-            @Valid @RequestPart("destination") DestinationDTO dto,
+            @RequestPart("destination") String destinationJson,
             @RequestPart(value = "image", required = false) MultipartFile imageFile) throws IOException {
 
-        var updated = destinationService.updateDestination(id, dto, imageFile);
+        ObjectMapper mapper = new ObjectMapper();
+        DestinationDTO dto = mapper.readValue(destinationJson, DestinationDTO.class);
+
+        DestinationDTO updated = destinationService.updateDestination(id, dto, imageFile);
         return ResponseEntity.ok(new ApiResponse<>("Cập nhật điểm đến thành công", updated));
     }
+
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
