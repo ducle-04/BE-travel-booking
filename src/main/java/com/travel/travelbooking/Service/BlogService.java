@@ -4,6 +4,7 @@ import com.travel.travelbooking.Dto.BlogCommentDTO;
 import com.travel.travelbooking.Dto.BlogDTO;
 import com.travel.travelbooking.Dto.BlogSummaryDTO;
 import com.travel.travelbooking.Dto.CreateCommentDTO;
+import com.travel.travelbooking.Dto.BlogCreateDTO;
 import com.travel.travelbooking.Entity.*;
 import com.travel.travelbooking.Exception.ResourceNotFoundException;
 import com.travel.travelbooking.Repository.BlogCommentRepository;
@@ -17,7 +18,10 @@ import org.springframework.data.domain.Sort;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -28,6 +32,78 @@ public class BlogService {
     private final BlogRepository blogRepository;
     private final BlogCommentRepository blogCommentRepository;
     private final UserRepository userRepository;
+    private final CloudinaryService cloudinaryService;
+
+    //User đăng blog
+    @Transactional
+    public BlogDTO createBlog(BlogCreateDTO dto, MultipartFile thumbnailFile,
+                            List<MultipartFile> imageFiles, UserDetails userDetails) throws IOException {
+        
+        User user = userRepository.findByUsername(userDetails.getUsername());
+        if (user == null) {
+            throw new ResourceNotFoundException("Không tìm thấy người dùng");
+        }
+
+        // 1. Tạo Blog entity
+        Blog blog = new Blog();
+        blog.setTitle(dto.getTitle());
+        blog.setContent(dto.getContent());
+        blog.setUser(user);
+        // blog.setStatus(BlogStatus.PENDING); // Đã được set mặc định trong Entity Blog.java
+
+        // 2. Upload và set thumbnail
+        if (thumbnailFile == null || thumbnailFile.isEmpty()) {
+            throw new IllegalArgumentException("Ảnh thumbnail là bắt buộc");
+        }
+        String thumbnailUrl = cloudinaryService.uploadImage(thumbnailFile);
+        blog.setThumbnail(thumbnailUrl);
+
+        // 3. Upload và set ảnh chi tiết (nếu có)
+        List<BlogImage> blogImages = new ArrayList<>();
+        if (imageFiles != null && !imageFiles.isEmpty()) {
+            for (MultipartFile file : imageFiles) {
+                if (file != null && !file.isEmpty()) {
+                    String imgUrl = cloudinaryService.uploadImage(file);
+                    BlogImage blogImage = new BlogImage();
+                    blogImage.setImageUrl(imgUrl);
+                    blogImage.setBlog(blog); //Liên kết ảnh với blog
+                    blogImages.add(blogImage);
+                }
+            }
+        }
+        blog.setImages(blogImages);
+
+        // 4. Lưu blog (và BlogImage nhờ CascadeType.ALL)
+        Blog savedBlog = blogRepository.save(blog);
+        return toBlogDTO(savedBlog);
+    }
+
+    // Admin/Staff duyệt blog
+    @Transactional
+    public BlogDTO approveBlog(Long blogId) {
+        Blog blog = blogRepository.findById(blogId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy bài blog với ID: " + blogId));
+
+        if (blog.getStatus() != BlogStatus.PENDING) {
+            throw new IllegalArgumentException("Blog không ở trạng thái chờ duyệt");
+        }
+        
+        blog.setStatus(BlogStatus.APPROVED);
+        return toBlogDTO(blogRepository.save(blog));
+    }
+
+    @Transactional
+    public BlogDTO rejectBlog(Long blogId) {
+        Blog blog = blogRepository.findById(blogId)
+                .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy bài blog với ID: " + blogId));
+
+        if (blog.getStatus() != BlogStatus.PENDING) {
+            throw new IllegalArgumentException("Blog không ở trạng thái chờ duyệt");
+        }
+        
+        blog.setStatus(BlogStatus.REJECTED);
+        return toBlogDTO(blogRepository.save(blog));
+    }
 
     // Luồng chính 2, 3, 4: Lấy danh sách blog đã xuất bản (phân trang)
     @Transactional(readOnly = true)
