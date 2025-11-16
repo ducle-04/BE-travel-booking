@@ -82,6 +82,7 @@ public class SecurityConfig {
                                 "/api/destinations/search", "/api/destinations/region").permitAll()
                         .requestMatchers("/api/tours", "/api/tours/{id}", "/api/tours/search",
                                 "/api/tours/destination/{destinationId}").permitAll()
+                        .requestMatchers("/api/blogs", "/api/blogs/{id}", "/api/blogs/{id}/related", "/api/blogs/{id}/comments").permitAll()
 
                         // Các endpoint yêu cầu quyền
                         .requestMatchers("/api/user/profile").authenticated()
@@ -90,7 +91,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/user/create", "/api/user/staff/update/{username}",
                                 "/api/user/delete/{id}", "/api/user/status/{username}").hasRole("ADMIN")
                         .requestMatchers("/api/destinations/**", "/api/tours/**").hasAnyRole("ADMIN", "STAFF")
-
+                        .requestMatchers("/api/blogs", "/api/blogs/{id}/comments").authenticated()
+                        .requestMatchers("/api/blogs/{id}/approve", "/api/blogs/{id}/reject").hasAnyRole("ADMIN", "STAFF")
                         // Còn lại: yêu cầu xác thực
                         .anyRequest().authenticated()
                 )
