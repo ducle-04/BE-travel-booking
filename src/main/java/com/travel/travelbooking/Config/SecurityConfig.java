@@ -90,10 +90,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/user/create", "/api/user/staff/update/{username}",
                                 "/api/user/delete/{id}", "/api/user/status/{username}").hasRole("ADMIN")
                         .requestMatchers("/api/destinations/**", "/api/tours/**").hasAnyRole("ADMIN", "STAFF")
-                        .requestMatchers("/api/auth/**", "/api/oauth2/**", "/oauth2/**").permitAll() 
-                        .requestMatchers(HttpMethod.GET, "/api/blogs/**").permitAll() //Cho phép xem blog công khai
-                        .requestMatchers(HttpMethod.POST, "/api/blogs/*/comments").authenticated() //Yêu cầu đăng nhập để bình luận
-                        .requestMatchers("/api/user/profile").authenticated()
+
                         // Còn lại: yêu cầu xác thực
                         .anyRequest().authenticated()
                 )

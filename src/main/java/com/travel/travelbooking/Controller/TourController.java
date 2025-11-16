@@ -1,5 +1,6 @@
 package com.travel.travelbooking.Controller;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.travel.travelbooking.Dto.TourDTO;
 import com.travel.travelbooking.Dto.TourStatsDTO;
 import com.travel.travelbooking.Entity.TourStatus;
@@ -8,6 +9,7 @@ import com.travel.travelbooking.Service.TourService;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -84,11 +86,15 @@ public class TourController {
     }
 
     // 7. Tạo tour mới (ADMIN | STAFF)
-    @PostMapping(consumes = "multipart/form-data")
+    @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
     public ResponseEntity<ApiResponse<TourDTO>> createTour(
-            @Valid @RequestPart("tour") TourDTO dto,
+            @RequestPart("tour") String tourJson,  // nhận JSON string
             @RequestPart(value = "image", required = false) MultipartFile imageFile) throws IOException {
+
+        // Convert JSON string → TourDTO
+        ObjectMapper mapper = new ObjectMapper();
+        TourDTO dto = mapper.readValue(tourJson, TourDTO.class);
 
         TourDTO created = tourService.createTour(dto, imageFile);
         return ResponseEntity.status(201)
@@ -96,12 +102,15 @@ public class TourController {
     }
 
     // 8. Cập nhật tour (ADMIN | STAFF)
-    @PutMapping(value = "/{id}", consumes = "multipart/form-data")
+    @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
     public ResponseEntity<ApiResponse<TourDTO>> updateTour(
             @PathVariable Long id,
-            @Valid @RequestPart("tour") TourDTO dto,
+            @RequestPart("tour") String tourJson,
             @RequestPart(value = "image", required = false) MultipartFile imageFile) throws IOException {
+
+        ObjectMapper mapper = new ObjectMapper();
+        TourDTO dto = mapper.readValue(tourJson, TourDTO.class);
 
         TourDTO updated = tourService.updateTour(id, dto, imageFile);
         return ResponseEntity.ok(
