@@ -7,6 +7,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.util.List;
 
 public interface TourService {
 
@@ -37,4 +38,10 @@ public interface TourService {
 
     // 9. Thống kê tour
     TourStatsDTO getTourStats();
+
+    // 10.Lấy tour theo loại tour
+    List<TourDTO> getToursByCategory(Long categoryId);
+
+    //11.Lấy tour theo loại + phân trang
+    Page<TourDTO> getToursByCategoryPaged(Long categoryId, int page, int size);
 }

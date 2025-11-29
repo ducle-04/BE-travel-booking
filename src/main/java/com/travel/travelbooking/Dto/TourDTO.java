@@ -48,9 +48,14 @@ public class TourDTO {
     private Long reviewsCount;
     private TourDetailDTO tourDetail;
 
+    // MỚI: Loại tour
+    private Long categoryId;
+    private String categoryName;
+    private String categoryIcon;
+
     public TourDTO() {}
 
-    // Constructor cơ bản (không có COUNT)
+    // Constructor cũ (không count)
     public TourDTO(Long id, String name, Long destinationId, String destinationName, String duration,
                    Double price, String imageUrl, String description, Double averageRating,
                    Integer totalParticipants, TourStatus status, LocalDateTime createdAt, Integer maxParticipants) {
@@ -69,25 +74,18 @@ public class TourDTO {
         this.maxParticipants = maxParticipants;
     }
 
-    // Constructor có COUNT (bookings, reviews)
+    // Constructor có count + category
     public TourDTO(Long id, String name, Long destinationId, String destinationName, String duration,
                    Double price, String imageUrl, String description, Double averageRating,
                    Integer totalParticipants, TourStatus status, LocalDateTime createdAt,
-                   Long bookingsCount, Long reviewsCount, Integer maxParticipants) {
-        this.id = id;
-        this.name = name;
-        this.destinationId = destinationId;
-        this.destinationName = destinationName;
-        this.duration = duration;
-        this.price = price;
-        this.imageUrl = imageUrl;
-        this.description = description;
-        this.averageRating = averageRating;
-        this.totalParticipants = totalParticipants;
-        this.status = status;
-        this.createdAt = createdAt;
+                   Long bookingsCount, Long reviewsCount, Integer maxParticipants,
+                   Long categoryId, String categoryName, String categoryIcon) {
+        this(id, name, destinationId, destinationName, duration, price, imageUrl, description,
+                averageRating, totalParticipants, status, createdAt, maxParticipants);
         this.bookingsCount = bookingsCount;
         this.reviewsCount = reviewsCount;
-        this.maxParticipants = maxParticipants;
+        this.categoryId = categoryId;
+        this.categoryName = categoryName;
+        this.categoryIcon = categoryIcon;
     }
 }

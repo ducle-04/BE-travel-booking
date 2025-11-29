@@ -5,6 +5,7 @@ import com.travel.travelbooking.Dto.TourStatsDTO;
 import com.travel.travelbooking.Entity.*;
 import com.travel.travelbooking.Exception.ResourceNotFoundException;
 import com.travel.travelbooking.Repository.DestinationRepository;
+import com.travel.travelbooking.Repository.TourCategoryRepository;
 import com.travel.travelbooking.Repository.TourRepository;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -24,10 +25,12 @@ public class TourServiceImpl implements TourService {
 
     private final TourRepository tourRepository;
     private final DestinationRepository destinationRepository;
+    private final TourCategoryRepository tourCategoryRepository;
     private final CloudinaryService cloudinaryService;
     private final TourDetailService tourDetailService;
 
-    // 1. Tạo tour mới
+    // ====================== PUBLIC METHODS ======================
+
     @Override
     @Transactional
     public TourDTO createTour(TourDTO dto, MultipartFile imageFile) throws IOException {
@@ -37,15 +40,19 @@ public class TourServiceImpl implements TourService {
         Destination dest = findDestinationByName(dto.getDestinationName());
         validateDestinationActive(dest);
 
+        TourCategory category = findCategoryByName(dto.getCategoryName());
+        validateCategoryActive(category);
+
         dto.setImageUrl(resolveImageUrl(imageFile, dto.getImageUrl()));
+
         Tour tour = toEntity(dto);
         tour.setDestination(dest);
-        tour = tourRepository.save(tour);
+        tour.setCategory(category);
 
+        tour = tourRepository.save(tour);
         return findWithEnhancements(tour.getId());
     }
 
-    // 2. Lấy tất cả tour
     @Override
     @Transactional(readOnly = true)
     public List<TourDTO> getAllTours() {
@@ -54,7 +61,6 @@ public class TourServiceImpl implements TourService {
         return dtos;
     }
 
-    // 3. Lấy tour theo ID
     @Override
     @Transactional(readOnly = true)
     public TourDTO getTourById(Long id) {
@@ -65,7 +71,6 @@ public class TourServiceImpl implements TourService {
         return dto;
     }
 
-    // 4. Tìm kiếm tour theo tên (có phân trang)
     @Override
     @Transactional(readOnly = true)
     public Page<TourDTO> searchToursByName(String name, int page) {
@@ -78,7 +83,6 @@ public class TourServiceImpl implements TourService {
         return result;
     }
 
-    // 5. Lấy tour theo điểm đến
     @Override
     @Transactional(readOnly = true)
     public List<TourDTO> getToursByDestination(Long destinationId) {
@@ -90,7 +94,6 @@ public class TourServiceImpl implements TourService {
         return dtos;
     }
 
-    // 6. Cập nhật tour
     @Override
     @Transactional
     public TourDTO updateTour(Long id, TourDTO dto, MultipartFile imageFile) throws IOException {
@@ -104,20 +107,24 @@ public class TourServiceImpl implements TourService {
         Destination dest = findDestinationByName(dto.getDestinationName());
         validateDestinationActive(dest);
 
+        TourCategory category = findCategoryByName(dto.getCategoryName());
+        validateCategoryActive(category);
+
         if (dest.getStatus() == DestinationStatus.INACTIVE && dto.getStatus() == TourStatus.ACTIVE) {
             throw new IllegalArgumentException("Không thể kích hoạt tour khi điểm đến tạm ngưng");
         }
 
         String imageUrl = resolveImageUrl(imageFile, dto.getImageUrl());
-        if (imageUrl != null) tour.setImageUrl(imageUrl);
+        if (imageUrl != null) {
+            tour.setImageUrl(imageUrl);
+        }
 
-        updateEntity(tour, dto, dest);
+        updateEntity(tour, dto, dest, category);
         tourRepository.save(tour);
 
         return findWithEnhancements(id);
     }
 
-    // 7. Xóa mềm tour
     @Override
     @Transactional
     public void deleteTour(Long id) {
@@ -128,7 +135,6 @@ public class TourServiceImpl implements TourService {
         tourRepository.save(tour);
     }
 
-    // 8. Lọc tour nâng cao
     @Override
     @Transactional(readOnly = true)
     public Page<TourDTO> getFilteredTours(String destinationName, TourStatus status,
@@ -140,14 +146,37 @@ public class TourServiceImpl implements TourService {
         return result;
     }
 
-    // 9. Lấy thống kê tour
     @Override
     @Transactional(readOnly = true)
     public TourStatsDTO getTourStats() {
         return tourRepository.getTourStats();
     }
 
-    // === GIỮ NGUYÊN LOGIC CŨ ===
+    // Lấy tour theo loại (không phân trang)
+    @Override
+    @Transactional(readOnly = true)
+    public List<TourDTO> getToursByCategory(Long categoryId) {
+        validateId(categoryId);
+        List<TourDTO> dtos = tourRepository.findByCategoryIdWithCounts(categoryId);
+        enhanceWithDetails(dtos);
+        return dtos;
+    }
+
+    // Lấy tour theo loại + phân trang
+    @Override
+    @Transactional(readOnly = true)
+    public Page<TourDTO> getToursByCategoryPaged(Long categoryId, int page, int size) {
+        validateId(categoryId);
+
+        Pageable pageable = PageRequest.of(page, size);
+        Page<TourDTO> result = tourRepository.findByCategoryIdWithCountsPaged(categoryId, pageable);
+
+        enhanceWithDetails(result.getContent());
+        return result;
+    }
+
+    // ====================== PRIVATE HELPERS ======================
+
     private void enhanceWithDetails(List<TourDTO> dtos) {
         if (dtos == null || dtos.isEmpty()) return;
         dtos.forEach(dto -> dto.setTourDetail(tourDetailService.getTourDetailDTO(dto.getId())));
@@ -174,12 +203,26 @@ public class TourServiceImpl implements TourService {
 
     private Destination findDestinationByName(String name) {
         return destinationRepository.findByName(name)
-                .orElseThrow(() -> new ResourceNotFoundException("Điểm đến không tồn tại"));
+                .orElseThrow(() -> new ResourceNotFoundException("Điểm đến '" + name + "' không tồn tại"));
     }
 
     private void validateDestinationActive(Destination dest) {
         if (dest.getStatus() == DestinationStatus.DELETED) {
-            throw new IllegalArgumentException("Điểm đến đã bị xóa");
+            throw new IllegalArgumentException("Điểm đến đã bị xóa, không thể sử dụng");
+        }
+    }
+
+    private TourCategory findCategoryByName(String name) {
+        if (name == null || name.trim().isEmpty()) {
+            throw new IllegalArgumentException("Tên loại tour không được để trống");
+        }
+        return tourCategoryRepository.findByNameIgnoreCase(name.trim())
+                .orElseThrow(() -> new ResourceNotFoundException("Loại tour '" + name + "' không tồn tại"));
+    }
+
+    private void validateCategoryActive(TourCategory category) {
+        if (category.getStatus() == CategoryStatus.INACTIVE) {
+            throw new IllegalArgumentException("Loại tour '" + category.getName() + "' đã bị vô hiệu hóa");
         }
     }
 
@@ -203,7 +246,7 @@ public class TourServiceImpl implements TourService {
     private void validatePriceRange(Double min, Double max) {
         if (min != null && min < 0) throw new IllegalArgumentException("Giá min không âm");
         if (max != null && max < 0) throw new IllegalArgumentException("Giá max không âm");
-        if (min != null && max != null && min > max) throw new IllegalArgumentException("Giá min > max");
+        if (min != null && max != null && min > max) throw new IllegalArgumentException("Giá min không được lớn hơn giá max");
     }
 
     private Tour toEntity(TourDTO dto) {
@@ -218,13 +261,16 @@ public class TourServiceImpl implements TourService {
         return tour;
     }
 
-    private void updateEntity(Tour tour, TourDTO dto, Destination dest) {
+    private void updateEntity(Tour tour, TourDTO dto, Destination dest, TourCategory category) {
         tour.setName(dto.getName());
         tour.setDuration(dto.getDuration());
         tour.setPrice(dto.getPrice());
         tour.setDescription(dto.getDescription());
         tour.setMaxParticipants(dto.getMaxParticipants());
         tour.setDestination(dest);
-        if (dto.getStatus() != null) tour.setStatus(dto.getStatus());
+        tour.setCategory(category);
+        if (dto.getStatus() != null) {
+            tour.setStatus(dto.getStatus());
+        }
     }
 }

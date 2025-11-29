@@ -25,7 +25,7 @@ public class TourController {
 
     private final TourService tourService;
 
-    // 1. Lấy danh sách tất cả tour (có count bookings & reviews)
+    // 1. Lấy danh sách tất cả tour (có count bookings & reviews + category)
     @GetMapping
     public ResponseEntity<ApiResponse<List<TourDTO>>> getAllTours() {
         return ResponseEntity.ok(
@@ -41,7 +41,7 @@ public class TourController {
         );
     }
 
-    // 3. Tìm kiếm tour theo tên (phân trang, page=0, size=10)
+    // 3. Tìm kiếm tour theo tên (phân trang)
     @GetMapping("/search")
     public ResponseEntity<ApiResponse<Page<TourDTO>>> searchTours(
             @RequestParam String name,
@@ -53,7 +53,7 @@ public class TourController {
         );
     }
 
-    // 4. Lấy danh sách tour theo điểm đến (destinationId)
+    // 4. Lấy tour theo điểm đến
     @GetMapping("/destination/{destinationId}")
     public ResponseEntity<ApiResponse<List<TourDTO>>> getToursByDestination(@PathVariable Long destinationId) {
         return ResponseEntity.ok(
@@ -62,7 +62,7 @@ public class TourController {
         );
     }
 
-    // 5. Lọc tour nâng cao (destinationName, status, price range, phân trang)
+    // 5. Lọc tour nâng cao
     @GetMapping("/filter")
     public ResponseEntity<ApiResponse<Page<TourDTO>>> filterTours(
             @RequestParam(required = false) String destinationName,
@@ -77,7 +77,7 @@ public class TourController {
         );
     }
 
-    // 6. Thống kê tổng quan tour
+    // 6. Thống kê tour
     @GetMapping("/stats")
     public ResponseEntity<ApiResponse<TourStatsDTO>> getTourStats() {
         return ResponseEntity.ok(
@@ -85,14 +85,39 @@ public class TourController {
         );
     }
 
+    // MỚI: LẤY TOUR THEO LOẠI TOUR (categoryId) – RẤT HAY DÙNG Ở TRANG CHỦ
+    @GetMapping("/category/{categoryId}")
+    public ResponseEntity<ApiResponse<List<TourDTO>>> getToursByCategory(
+            @PathVariable Long categoryId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size) {
+
+        List<TourDTO> tours = tourService.getToursByCategory(categoryId);
+        return ResponseEntity.ok(
+                new ApiResponse<>("Lấy danh sách tour theo loại thành công", tours)
+        );
+    }
+
+    // Bonus: Lấy tour theo loại + phân trang (nếu cần nhiều hơn 10 tour)
+    @GetMapping("/category/{categoryId}/paged")
+    public ResponseEntity<ApiResponse<Page<TourDTO>>> getToursByCategoryPaged(
+            @PathVariable Long categoryId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "12") int size) {
+
+        Page<TourDTO> result = tourService.getToursByCategoryPaged(categoryId, page, size);
+        return ResponseEntity.ok(
+                new ApiResponse<>("Lấy tour theo loại (có phân trang) thành công", result)
+        );
+    }
+
     // 7. Tạo tour mới (ADMIN | STAFF)
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
     public ResponseEntity<ApiResponse<TourDTO>> createTour(
-            @RequestPart("tour") String tourJson,  // nhận JSON string
+            @RequestPart("tour") String tourJson,
             @RequestPart(value = "image", required = false) MultipartFile imageFile) throws IOException {
 
-        // Convert JSON string → TourDTO
         ObjectMapper mapper = new ObjectMapper();
         TourDTO dto = mapper.readValue(tourJson, TourDTO.class);
 
@@ -118,7 +143,7 @@ public class TourController {
         );
     }
 
-    // 9. Xóa mềm tour (ADMIN | STAFF)
+    // 9. Xóa mềm tour
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
     public ResponseEntity<ApiResponse<Void>> deleteTour(@PathVariable Long id) {

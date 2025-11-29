@@ -28,7 +28,7 @@ public class JwtUtil {
     public String generateToken(String username, Set<String> roles) {
         return Jwts.builder()
                 .setSubject(username)
-                .claim("roles", roles)
+                .claim("roles", roles) // ⬅ LƯU QUYỀN VÀO TOKEN
                 .setIssuedAt(new Date())
                 .setExpiration(new Date(System.currentTimeMillis() + expiration))
                 .signWith(secretKey, SignatureAlgorithm.HS512)

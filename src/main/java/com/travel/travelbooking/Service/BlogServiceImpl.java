@@ -27,7 +27,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
-public class BlogServiceImpl implements BlogService { // Đã đổi tên và implement interface
+public class BlogServiceImpl implements BlogService {
 
     private final BlogRepository blogRepository;
     private final BlogCommentRepository blogCommentRepository;

@@ -80,9 +80,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/auth/**", "/api/oauth2/**", "/oauth2/**").permitAll()
                         .requestMatchers("/api/destinations", "/api/destinations/{id}",
                                 "/api/destinations/search", "/api/destinations/region").permitAll()
-                        .requestMatchers("/api/tours", "/api/tours/{id}", "/api/tours/search",
-                                "/api/tours/destination/{destinationId}").permitAll()
+                        .requestMatchers("/api/tours", "/api/tours/**").permitAll()
                         .requestMatchers("/api/blogs", "/api/blogs/{id}", "/api/blogs/{id}/related", "/api/blogs/{id}/comments").permitAll()
+                        .requestMatchers("/api/tour-categories/active").permitAll()
+                        .requestMatchers("/api/tour-categories").permitAll()
 
                         // Các endpoint yêu cầu quyền
                         .requestMatchers("/api/user/profile").authenticated()
@@ -93,6 +94,11 @@ public class SecurityConfig {
                         .requestMatchers("/api/destinations/**", "/api/tours/**").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers("/api/blogs", "/api/blogs/{id}/comments").authenticated()
                         .requestMatchers("/api/blogs/{id}/approve", "/api/blogs/{id}/reject").hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers("/api/admin/dashboard/**").hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers("/api/tour-categories",
+                                "/api/tour-categories/**").hasAnyRole("ADMIN", "STAFF")
+
+
                         // Còn lại: yêu cầu xác thực
                         .anyRequest().authenticated()
                 )
