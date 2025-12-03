@@ -19,13 +19,10 @@ public class TourDetail {
     @JoinColumn(name = "tour_id", nullable = false, unique = true)
     private Tour tour;
 
-    @Column(nullable = false, length = 500)
-    private String transportation;
-
     @Column(nullable = false, columnDefinition = "TEXT")
     private String itinerary;
 
-    @Column(nullable = false, length = 300)
+    @Column(nullable = false, length = 500)
     private String departurePoint;
 
     @Column(nullable = false, length = 100)
@@ -37,6 +34,18 @@ public class TourDetail {
     @Column(nullable = false, columnDefinition = "TEXT")
     private String cancellationPolicy;
 
+    // === PHƯƠNG TIỆN + GIÁ ===
+    @ElementCollection
+    @CollectionTable(name = "tour_transports", joinColumns = @JoinColumn(name = "tour_detail_id"))
+    private List<Transport> transports = new ArrayList<>();
+
+    // === KHÁCH SẠN: CHỌN TỪ DANH SÁCH ===
+    @ElementCollection
+    @CollectionTable(name = "tour_selected_hotels", joinColumns = @JoinColumn(name = "tour_detail_id"))
+    @Column(name = "hotel_id")
+    private List<Long> selectedHotelIds = new ArrayList<>();
+
+    // === ẢNH + VIDEO CHUNG ===
     @ElementCollection
     @CollectionTable(name = "tour_additional_images", joinColumns = @JoinColumn(name = "tour_detail_id"))
     @Column(name = "image_url", length = 1000)

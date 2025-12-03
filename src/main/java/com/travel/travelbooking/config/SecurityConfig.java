@@ -80,6 +80,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/destinations", "/api/destinations/{id}",
                                 "/api/destinations/search", "/api/destinations/region").permitAll()
                         .requestMatchers("/api/tours", "/api/tours/**").permitAll()
+                        .requestMatchers("/api/hotels", "/api/hotels/{id}", "/api/hotels/search").permitAll()
                         .requestMatchers("/api/blogs", "/api/blogs/{id}", "/api/blogs/{id}/related", "/api/blogs/{id}/comments").permitAll()
                         .requestMatchers("/api/tour-categories/active").permitAll()
                         .requestMatchers("/api/tour-categories").permitAll()
@@ -91,6 +92,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/user/create", "/api/user/staff/update/{username}",
                                 "/api/user/delete/{id}", "/api/user/status/{username}").hasRole("ADMIN")
                         .requestMatchers("/api/destinations/**", "/api/tours/**").hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers("/api/hotels", "/api/hotels/{id}").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers("/api/blogs", "/api/blogs/{id}/comments").authenticated()
                         .requestMatchers("/api/blogs/{id}/approve", "/api/blogs/{id}/reject").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers("/api/admin/dashboard/**").hasAnyRole("ADMIN", "STAFF")
