@@ -88,33 +88,20 @@ public class TourController {
         );
     }
 
-    // MỚI: LẤY TOUR THEO LOẠI TOUR (categoryId) – RẤT HAY DÙNG Ở TRANG CHỦ
+    // 7: LẤY TOUR THEO LOẠI TOUR
     @GetMapping("/category/{categoryId}")
-    public ResponseEntity<ApiResponse<List<TourDTO>>> getToursByCategory(
-            @PathVariable Long categoryId,
-            @RequestParam(defaultValue = "0") int page,
-            @RequestParam(defaultValue = "10") int size) {
-
-        List<TourDTO> tours = tourService.getToursByCategory(categoryId);
-        return ResponseEntity.ok(
-                new ApiResponse<>("Lấy danh sách tour theo loại thành công", tours)
-        );
-    }
-
-    // Bonus: Lấy tour theo loại + phân trang (nếu cần nhiều hơn 10 tour)
-    @GetMapping("/category/{categoryId}/paged")
-    public ResponseEntity<ApiResponse<Page<TourDTO>>> getToursByCategoryPaged(
+    public ResponseEntity<ApiResponse<Page<TourDTO>>> getToursByCategory(
             @PathVariable Long categoryId,
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "12") int size) {
 
         Page<TourDTO> result = tourService.getToursByCategoryPaged(categoryId, page, size);
         return ResponseEntity.ok(
-                new ApiResponse<>("Lấy tour theo loại (có phân trang) thành công", result)
+                new ApiResponse<>("Lấy tour theo loại thành công", result)
         );
     }
 
-    // 7. Tạo tour mới (ADMIN | STAFF)
+    // 8. Tạo tour mới (ADMIN | STAFF)
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
     public ResponseEntity<ApiResponse<TourDTO>> createTour(
@@ -128,7 +115,7 @@ public class TourController {
                 .body(new ApiResponse<>("Tạo tour thành công", created));
     }
 
-    // 8. Cập nhật tour (ADMIN | STAFF)
+    // 9. Cập nhật tour (ADMIN | STAFF)
     @PutMapping(value = "/{id}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
     public ResponseEntity<ApiResponse<TourDTO>> updateTour(
@@ -144,7 +131,7 @@ public class TourController {
         );
     }
 
-    // 9. Xóa mềm tour
+    // 10. Xóa mềm tour
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
     public ResponseEntity<ApiResponse<Void>> deleteTour(@PathVariable Long id) {

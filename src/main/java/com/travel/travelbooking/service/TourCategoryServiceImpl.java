@@ -6,6 +6,8 @@ import com.travel.travelbooking.entity.TourCategory;
 import com.travel.travelbooking.exception.ResourceNotFoundException;
 import com.travel.travelbooking.repository.TourCategoryRepository;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -28,6 +30,12 @@ public class TourCategoryServiceImpl implements TourCategoryService {
     @Override
     public List<TourCategoryDTO> getAllCategories() {
         return repository.findAll().stream().map(this::toDTO).toList();
+    }
+
+    @Override
+    public Page<TourCategoryDTO> getAllCategoriesPaged(Pageable pageable) {
+        return repository.findAll(pageable)
+                .map(this::toDTO);
     }
 
     @Override

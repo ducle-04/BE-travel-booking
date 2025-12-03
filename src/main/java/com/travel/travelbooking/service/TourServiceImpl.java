@@ -136,15 +136,17 @@ public class TourServiceImpl implements TourService {
 
         updateEntity(tour, dto, dest, category);
 
-        // Cập nhật danh sách ngày khởi hành (xóa cũ, thêm mới)
-        tour.getStartDates().clear();
+        // Cập nhật danh sách ngày khởi hành (xóa cũ + thêm mới đúng cách với Hibernate)
+        List<TourStartDate> existingDates = tour.getStartDates();
 
+        // XÓA CÁC PHẦN TỬ CŨ ĐÚNG CHUẨN (Hibernate orphanRemoval OK)
+        existingDates.clear();
+
+        // THÊM MỚI
         if (dto.getStartDates() != null && !dto.getStartDates().isEmpty()) {
-            tour.setStartDates(
-                    dto.getStartDates().stream()
-                            .map(date -> new TourStartDate(tour, date))
-                            .toList()
-            );
+            dto.getStartDates().forEach(date -> {
+                existingDates.add(new TourStartDate(tour, date));
+            });
         }
 
         tourRepository.save(tour);
