@@ -1,7 +1,6 @@
 package com.travel.travelbooking.dto;
 
 import lombok.Data;
-
 import java.util.ArrayList;
 import java.util.List;
 
@@ -11,7 +10,10 @@ public class HotelDTO {
     private String name;
     private String description;
     private String address;
-    private String starRating;
+    private Integer starRating;
+    private String status;
     private List<String> images = new ArrayList<>();
     private List<String> videos = new ArrayList<>();
+
+
 }

@@ -3,9 +3,11 @@ package com.travel.travelbooking.controller;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.travel.travelbooking.dto.HotelDTO;
 import com.travel.travelbooking.payload.ApiResponse;
+import com.travel.travelbooking.payload.PageResponse;
 import com.travel.travelbooking.service.HotelService;
+import com.travel.travelbooking.service.HotelStats;
 import lombok.RequiredArgsConstructor;
-import org.springframework.data.domain.Page;
+import org.springframework.data.domain.*;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
@@ -23,20 +25,21 @@ public class HotelController {
     private final ObjectMapper objectMapper;
 
     @PostMapping(consumes = "multipart/form-data")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
-    public ResponseEntity<?> createHotel(
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    public ResponseEntity<ApiResponse<HotelDTO>> createHotel(
             @RequestPart("hotel") String hotelJson,
             @RequestPart(value = "images", required = false) List<MultipartFile> images,
             @RequestPart(value = "videos", required = false) List<MultipartFile> videos) throws IOException {
 
         HotelDTO dto = objectMapper.readValue(hotelJson, HotelDTO.class);
         HotelDTO created = hotelService.createHotel(dto, images, videos);
-        return ResponseEntity.status(201).body(new ApiResponse<>("Tạo khách sạn thành công", created));
+        return ResponseEntity.status(201)
+                .body(new ApiResponse<>("Tạo khách sạn thành công!", created));
     }
 
     @PutMapping(value = "/{id}", consumes = "multipart/form-data")
-    @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
-    public ResponseEntity<?> updateHotel(
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    public ResponseEntity<ApiResponse<HotelDTO>> updateHotel(
             @PathVariable Long id,
             @RequestPart("hotel") String hotelJson,
             @RequestPart(value = "images", required = false) List<MultipartFile> images,
@@ -44,24 +47,58 @@ public class HotelController {
 
         HotelDTO dto = objectMapper.readValue(hotelJson, HotelDTO.class);
         HotelDTO updated = hotelService.updateHotel(id, dto, images, videos);
-        return ResponseEntity.ok(new ApiResponse<>("Cập nhật khách sạn thành công", updated));
+        return ResponseEntity.ok(new ApiResponse<>("Cập nhật thành công!", updated));
     }
 
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> deleteHotel(@PathVariable Long id) {
+    public ResponseEntity<ApiResponse<Void>> deleteHotel(@PathVariable Long id) {
         hotelService.deleteHotel(id);
-        return ResponseEntity.ok(new ApiResponse<>("Xóa khách sạn thành công", null));
+        return ResponseEntity.ok(new ApiResponse<>("Xóa khách sạn thành công!", null));
     }
 
+    // === THÊM: XÓA ẢNH RIÊNG LẺ ===
+    @DeleteMapping("/{id}/images")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    public ResponseEntity<ApiResponse<Void>> deleteHotelImage(
+            @PathVariable Long id,
+            @RequestParam("imageUrl") String imageUrl) {
+
+        hotelService.deleteHotelImage(id, imageUrl);
+        return ResponseEntity.ok(new ApiResponse<>("Xóa ảnh thành công!", null));
+    }
+
+    // === THÊM: XÓA VIDEO RIÊNG LẺ ===
+    @DeleteMapping("/{id}/videos")
+    @PreAuthorize("hasAnyRole('ADMIN', 'STAFF')")
+    public ResponseEntity<ApiResponse<Void>> deleteHotelVideo(
+            @PathVariable Long id,
+            @RequestParam("videoUrl") String videoUrl) {
+
+        hotelService.deleteHotelVideo(id, videoUrl);
+        return ResponseEntity.ok(new ApiResponse<>("Xóa video thành công!", null));
+    }
+
+    // LỌC + PHÂN TRANG
     @GetMapping
-    public ResponseEntity<?> getAllHotels() {
-        return ResponseEntity.ok(new ApiResponse<>("Lấy danh sách khách sạn", hotelService.getAllHotels()));
+    public ResponseEntity<ApiResponse<PageResponse<HotelDTO>>> getHotels(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(required = false) String name,
+            @RequestParam(required = false) String address,
+            @RequestParam(required = false) String status,
+            @RequestParam(required = false) Integer starRating) {
+
+        Pageable pageable = PageRequest.of(page, size, Sort.by("id").descending());
+        Page<HotelDTO> result = hotelService.searchHotels(pageable, name, address, status, starRating);
+        PageResponse<HotelDTO> response = PageResponse.of(result);
+
+        return ResponseEntity.ok(new ApiResponse<>("Lấy danh sách thành công", response));
     }
 
-    @GetMapping("/search")
-    public ResponseEntity<?> searchHotels(@RequestParam String name, @RequestParam(defaultValue = "0") int page) {
-        Page<HotelDTO> result = hotelService.searchHotels(name, page);
-        return ResponseEntity.ok(new ApiResponse<>("Tìm khách sạn", result));
+    // THỐNG KÊ
+    @GetMapping("/stats")
+    public ResponseEntity<ApiResponse<HotelStats>> getStats() {
+        return ResponseEntity.ok(new ApiResponse<>("Thống kê khách sạn", hotelService.getHotelStats()));
     }
 }

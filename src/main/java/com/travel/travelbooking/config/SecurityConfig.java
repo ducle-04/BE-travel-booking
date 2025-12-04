@@ -92,7 +92,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/user/create", "/api/user/staff/update/{username}",
                                 "/api/user/delete/{id}", "/api/user/status/{username}").hasRole("ADMIN")
                         .requestMatchers("/api/destinations/**", "/api/tours/**").hasAnyRole("ADMIN", "STAFF")
-                        .requestMatchers("/api/hotels", "/api/hotels/{id}").hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers("/api/hotels/**").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers("/api/blogs", "/api/blogs/{id}/comments").authenticated()
                         .requestMatchers("/api/blogs/{id}/approve", "/api/blogs/{id}/reject").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers("/api/admin/dashboard/**").hasAnyRole("ADMIN", "STAFF")

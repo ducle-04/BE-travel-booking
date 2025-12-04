@@ -22,11 +22,15 @@ public class Hotel {
     @Column(columnDefinition = "TEXT")
     private String description;
 
-    @Column(length = 300)
-    private String address;
+    @Column(nullable = false, length = 500)
+    private String address; // VD: "123 Nguyễn Huệ, Quận 1, TP.HCM"
 
-    @Column(length = 10)
-    private String starRating; // "3 sao", "4 sao", "5 sao"
+    @Column(nullable = false)
+    private Integer starRating; // 1-5
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false)
+    private HotelStatus status = HotelStatus.ACTIVE;
 
     @ElementCollection
     @CollectionTable(name = "hotel_images", joinColumns = @JoinColumn(name = "hotel_id"))
@@ -38,10 +42,15 @@ public class Hotel {
     @Column(name = "video_url", length = 1000)
     private List<String> videos = new ArrayList<>();
 
+    @Column(updatable = false)
     private LocalDateTime createdAt;
 
     @PrePersist
     protected void onCreate() {
         createdAt = LocalDateTime.now();
+    }
+
+    public enum HotelStatus {
+        ACTIVE, INACTIVE
     }
 }
