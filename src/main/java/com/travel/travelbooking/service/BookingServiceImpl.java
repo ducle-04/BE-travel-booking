@@ -4,9 +4,7 @@ import com.travel.travelbooking.dto.BookingCreateRequest;
 import com.travel.travelbooking.dto.BookingDTO;
 import com.travel.travelbooking.entity.*;
 import com.travel.travelbooking.exception.ResourceNotFoundException;
-import com.travel.travelbooking.repository.BookingRepository;
-import com.travel.travelbooking.repository.TourRepository;
-import com.travel.travelbooking.repository.UserRepository;
+import com.travel.travelbooking.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.*;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -26,39 +24,83 @@ public class BookingServiceImpl implements BookingService {
     private final UserRepository userRepository;
     private final TourService tourService;
 
-    @Override
-    public BookingDTO createBooking(BookingCreateRequest request, Long userId) {
-        User user = userRepository.findById(userId)
-                .orElseThrow(() -> new ResourceNotFoundException("Người dùng không tồn tại"));
+    private final TourStartDateRepository tourStartDateRepository;
+    private final BookingContactRepository bookingContactRepository;
 
+    @Override
+    @Transactional
+    public BookingDTO createBooking(BookingCreateRequest request, Long userId) {
         Tour tour = tourRepository.findById(request.getTourId())
                 .orElseThrow(() -> new ResourceNotFoundException("Tour không tồn tại"));
 
         if (tour.getStatus() != TourStatus.ACTIVE) {
-            throw new IllegalArgumentException("Tour không khả dụng để đặt");
+            throw new IllegalArgumentException("Tour hiện không nhận đặt chỗ");
         }
 
-        long currentParticipants = bookingRepository.getCurrentParticipants(tour.getId());
-        long requested = currentParticipants + request.getNumberOfPeople();
-        if (requested > tour.getMaxParticipants()) {
-            throw new IllegalArgumentException(
-                    "Chỉ còn " + (tour.getMaxParticipants() - currentParticipants) + " chỗ trống"
-            );
+        TourStartDate startDateEntity = tourStartDateRepository
+                .findByTourIdAndStartDate(tour.getId(), request.getStartDate())
+                .orElseThrow(() -> new IllegalArgumentException("Ngày khởi hành không hợp lệ hoặc không tồn tại"));
+
+        Double transportPrice = 0.0;
+        String transportName = null;
+        TourDetail detail = tour.getDetail();
+        if (request.getTransportName() != null && !request.getTransportName().isBlank() && detail != null) {
+            Transport selected = detail.getTransports().stream()
+                    .filter(t -> t.getName().equals(request.getTransportName()))
+                    .findFirst()
+                    .orElseThrow(() -> new IllegalArgumentException("Phương tiện không tồn tại trong tour này"));
+            transportPrice = selected.getPrice();
+            transportName = selected.getName();
         }
 
-        double totalPrice = tour.getPrice() * request.getNumberOfPeople();
+        double totalPrice = (tour.getPrice() + transportPrice) * request.getNumberOfPeople();
+
+        long currentBooked = bookingRepository.getCurrentParticipants(tour.getId());
+        if (currentBooked + request.getNumberOfPeople() > tour.getMaxParticipants()) {
+            throw new IllegalArgumentException("Chỉ còn " + (tour.getMaxParticipants() - currentBooked) + " chỗ trống");
+        }
+
+        User loggedInUser = userId != null ? userRepository.findById(userId).orElse(null) : null;
+
+        BookingContact contact;
+        if (loggedInUser != null) {
+            contact = BookingContact.builder()
+                    .fullName(loggedInUser.getFullname())
+                    .email(loggedInUser.getEmail())
+                    .phoneNumber(loggedInUser.getPhoneNumber())
+                    .user(loggedInUser)
+                    .build();
+        } else {
+            if (request.getContactName() == null || request.getContactEmail() == null || request.getContactPhone() == null) {
+                throw new IllegalArgumentException("Vui lòng cung cấp đầy đủ thông tin liên hệ");
+            }
+            contact = BookingContact.builder()
+                    .fullName(request.getContactName())
+                    .email(request.getContactEmail())
+                    .phoneNumber(request.getContactPhone())
+                    .build();
+        }
+        contact = bookingContactRepository.save(contact);
 
         Booking booking = Booking.builder()
-                .user(user)
                 .tour(tour)
+                .user(loggedInUser)
+                .selectedStartDate(startDateEntity)
+                .selectedTransportName(transportName)
+                .selectedTransportPrice(transportPrice)
                 .numberOfPeople(request.getNumberOfPeople())
                 .totalPrice(totalPrice)
-                .startDate(request.getStartDate().atStartOfDay())
+                .contact(contact)
                 .note(request.getNote())
                 .status(BookingStatus.PENDING)
                 .build();
 
-        return toDTO(bookingRepository.save(booking)); // toDTO RIÊNG TRONG IMPL
+        Booking saved = bookingRepository.save(booking);
+
+        tour.setTotalParticipants((int) bookingRepository.getCurrentParticipants(tour.getId()));
+        tourRepository.save(tour);
+
+        return toDTO(saved);
     }
 
     @Override
@@ -162,8 +204,10 @@ public class BookingServiceImpl implements BookingService {
             throw new IllegalArgumentException("Chỉ có thể hoàn thành booking đã xác nhận");
         }
 
+        LocalDateTime tourStartDate = booking.getSelectedStartDate().getStartDate().atStartOfDay();
         LocalDateTime now = LocalDateTime.now();
-        if (booking.getStartDate() != null && booking.getStartDate().isAfter(now)) {
+
+        if (tourStartDate.isAfter(now)) {
             throw new IllegalArgumentException("Tour chưa diễn ra, không thể hoàn thành");
         }
 
@@ -206,7 +250,7 @@ public class BookingServiceImpl implements BookingService {
     // === GIỮ NGUYÊN LOGIC CŨ – toDTO RIÊNG TRONG IMPL ===
     private Booking getBookingByIdAndUser(Long id, Long userId) {
         return bookingRepository.findById(id)
-                .filter(b -> b.getUser().getId().equals(userId))
+                .filter(b -> b.getUser() != null && b.getUser().getId().equals(userId)) // ← SỬA DÒNG NÀY
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy booking của bạn"));
     }
 
@@ -229,16 +273,31 @@ public class BookingServiceImpl implements BookingService {
         dto.setTourId(b.getTour().getId());
         dto.setTourName(b.getTour().getName());
         dto.setDestinationName(b.getTour().getDestination().getName());
-        dto.setStartDate(b.getStartDate());
+
+        dto.setSelectedStartDate(b.getSelectedStartDate().getStartDate());
+        dto.setSelectedTransportName(b.getSelectedTransportName());
+        dto.setSelectedTransportPrice(b.getSelectedTransportPrice());
+
         dto.setNumberOfPeople(b.getNumberOfPeople());
         dto.setTotalPrice(b.getTotalPrice());
         dto.setBookingDate(b.getBookingDate());
         dto.setStatus(b.getStatus());
         dto.setNote(b.getNote());
-        dto.setUserId(b.getUser().getId());
-        dto.setUserFullname(b.getUser().getFullname());
-        dto.setUserPhone(b.getUser().getPhoneNumber());
-        dto.setUserAvatarUrl(b.getUser().getAvatarUrl());
+
+        // Contact info
+        dto.setContactName(b.getContact().getFullName());
+        dto.setContactEmail(b.getContact().getEmail());
+        dto.setContactPhone(b.getContact().getPhoneNumber());
+        dto.setGuest(b.getUser() == null);
+
+        // Nếu có user đăng nhập
+        if (b.getUser() != null) {
+            dto.setUserId(b.getUser().getId());
+            dto.setUserFullname(b.getUser().getFullname());
+            dto.setUserPhone(b.getUser().getPhoneNumber());
+            dto.setUserAvatarUrl(b.getUser().getAvatarUrl());
+        }
+
         return dto;
     }
 }

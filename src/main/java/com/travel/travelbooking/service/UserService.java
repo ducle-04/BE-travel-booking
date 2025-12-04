@@ -42,4 +42,6 @@ public interface UserService {
 
     // 11. Xóa avatar
     User deleteAvatar(String username);
+
+    void attachBookingsToNewUser(User user);
 }

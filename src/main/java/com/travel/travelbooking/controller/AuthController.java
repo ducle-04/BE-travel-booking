@@ -45,8 +45,13 @@ public class AuthController {
                 registerDTO.getPhoneNumber(),
                 "USER"
         );
-        return ResponseEntity.ok("Đăng ký người dùng thành công");
+
+        // TỰ ĐỘNG GÁN BOOKING GUEST → USER MỚI TẠO
+        userService.attachBookingsToNewUser(user);
+
+        return ResponseEntity.ok("Đăng ký thành công, booking trước đó đã được đồng bộ (nếu có).");
     }
+
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginDTO loginDTO) {

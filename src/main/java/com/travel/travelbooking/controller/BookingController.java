@@ -4,9 +4,11 @@ import com.travel.travelbooking.dto.BookingCreateRequest;
 import com.travel.travelbooking.dto.BookingDTO;
 import com.travel.travelbooking.entity.BookingStatus;
 import com.travel.travelbooking.entity.User;
+import com.travel.travelbooking.entity.UserStatus;
 import com.travel.travelbooking.payload.ApiResponse;
 import com.travel.travelbooking.service.BookingService;
 import com.travel.travelbooking.service.UserServiceImpl;
+import jakarta.validation.Valid;
 import org.springframework.data.domain.Page;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -43,11 +45,19 @@ public class BookingController {
     @PostMapping
     public ResponseEntity<?> createBooking(
             @AuthenticationPrincipal UserDetails userDetails,
-            @RequestBody BookingCreateRequest request) {
-        User user = validateUser(userDetails);
-        BookingDTO booking = bookingService.createBooking(request, user.getId());
+            @Valid @RequestBody BookingCreateRequest request) {
+
+        Long userId = null;
+        if (userDetails != null) {
+            User user = userServiceImpl.findByUsername(userDetails.getUsername());
+            if (user != null && user.getStatus() != UserStatus.DELETED) {
+                userId = user.getId();
+            }
+        }
+
+        BookingDTO dto = bookingService.createBooking(request, userId);
         return ResponseEntity.status(201)
-                .body(new ApiResponse<>("Đặt tour thành công, đang chờ xác nhận", booking));
+                .body(new ApiResponse<>("Đặt tour thành công! Chúng tôi sẽ liên hệ xác nhận sớm", dto));
     }
 
     // 2. Khách hàng yêu cầu hủy booking

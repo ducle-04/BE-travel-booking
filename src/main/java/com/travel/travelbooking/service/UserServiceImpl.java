@@ -1,11 +1,16 @@
 package com.travel.travelbooking.service;
 
 import com.travel.travelbooking.dto.UserDTO;
+import com.travel.travelbooking.entity.Booking;
+import com.travel.travelbooking.entity.BookingContact;
 import com.travel.travelbooking.entity.Role;
 import com.travel.travelbooking.entity.User;
 import com.travel.travelbooking.entity.UserStatus;
+import com.travel.travelbooking.repository.BookingContactRepository;
+import com.travel.travelbooking.repository.BookingRepository;
 import com.travel.travelbooking.repository.RoleRepository;
 import com.travel.travelbooking.repository.UserRepository;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -25,13 +30,25 @@ public class UserServiceImpl implements UserService {
     private final PasswordEncoder passwordEncoder;
     private final CloudinaryService cloudinaryService;
 
+    /** ⭐ Thêm bookingRepository + bookingContactRepository */
+    private final BookingRepository bookingRepository;
+    private final BookingContactRepository bookingContactRepository;
+
     @Autowired
-    public UserServiceImpl(UserRepository userRepository, RoleRepository roleRepository,
-                           PasswordEncoder passwordEncoder, CloudinaryService cloudinaryService) {
+    public UserServiceImpl(
+            UserRepository userRepository,
+            RoleRepository roleRepository,
+            PasswordEncoder passwordEncoder,
+            CloudinaryService cloudinaryService,
+            BookingRepository bookingRepository,
+            BookingContactRepository bookingContactRepository
+    ) {
         this.userRepository = userRepository;
         this.roleRepository = roleRepository;
         this.passwordEncoder = passwordEncoder;
         this.cloudinaryService = cloudinaryService;
+        this.bookingRepository = bookingRepository;
+        this.bookingContactRepository = bookingContactRepository;
     }
 
     @Override
@@ -181,7 +198,28 @@ public class UserServiceImpl implements UserService {
         return userRepository.save(user);
     }
 
-    // === PRIVATE HELPER ===
+    /** ⭐⭐⭐ GOM BOOKING GUEST → USER MỚI TẠO ⭐⭐⭐ */
+    @Override
+    @Transactional
+    public void attachBookingsToNewUser(User user) {
+
+        List<Booking> guestBookings =
+                bookingRepository.findByContactEmailAndUserIsNull(user.getEmail());
+
+        for (Booking b : guestBookings) {
+            b.setUser(user);
+
+            BookingContact contact = b.getContact();
+            if (contact != null) {
+                contact.setUser(user);
+                bookingContactRepository.save(contact);
+            }
+
+            bookingRepository.save(b);
+        }
+    }
+
+    // === PRIVATE ===
     private Set<Role> getOrCreateRoles(String... roleNames) {
         return Arrays.stream(roleNames)
                 .map(name -> roleRepository.findByName(name)

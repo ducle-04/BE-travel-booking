@@ -4,6 +4,7 @@ import com.travel.travelbooking.repository.RoleRepository;
 import com.travel.travelbooking.repository.UserRepository;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configuration.EnableWebSecurity;
@@ -84,6 +85,8 @@ public class SecurityConfig {
                         .requestMatchers("/api/blogs", "/api/blogs/{id}", "/api/blogs/{id}/related", "/api/blogs/{id}/comments").permitAll()
                         .requestMatchers("/api/tour-categories/active").permitAll()
                         .requestMatchers("/api/tour-categories").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/bookings").permitAll()
+
 
                         // Các endpoint yêu cầu quyền
                         .requestMatchers("/api/user/profile").authenticated()
