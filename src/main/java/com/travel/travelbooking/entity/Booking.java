@@ -42,6 +42,9 @@ public class Booking {
 
     private LocalDateTime bookingDate;
 
+    @OneToOne(mappedBy = "booking", cascade = CascadeType.ALL)
+    private Payment payment;
+
     @Enumerated(EnumType.STRING)
     @Column(columnDefinition = "ENUM('PENDING','CONFIRMED','CANCEL_REQUEST','CANCELLED','REJECTED','COMPLETED','DELETED')",
             nullable = false)

@@ -101,6 +101,7 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/dashboard/**").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers("/api/tour-categories",
                                 "/api/tour-categories/**").hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers(HttpMethod.PATCH, "/api/payments/**").hasAnyRole("ADMIN", "STAFF")
 
 
                         // Còn lại: yêu cầu xác thực

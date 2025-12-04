@@ -1,5 +1,6 @@
 package com.travel.travelbooking.dto;
 
+import com.travel.travelbooking.entity.PaymentMethod;
 import jakarta.validation.constraints.*;
 import lombok.Data;
 
@@ -19,6 +20,10 @@ public class BookingCreateRequest {
     @NotNull(message = "Vui lòng nhập số lượng người")
     @Min(1)
     private Integer numberOfPeople;
+
+    @NotNull(message = "Vui lòng chọn phương thức thanh toán")
+    private PaymentMethod paymentMethod;
+
 
     // Chỉ bắt buộc khi chưa đăng nhập
     private String contactName;

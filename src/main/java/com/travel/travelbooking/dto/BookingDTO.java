@@ -1,6 +1,8 @@
 package com.travel.travelbooking.dto;
 
 import com.travel.travelbooking.entity.BookingStatus;
+import com.travel.travelbooking.entity.PaymentMethod;
+import com.travel.travelbooking.entity.PaymentStatus;
 import lombok.Data;
 
 import java.time.LocalDate;
@@ -32,4 +34,9 @@ public class BookingDTO {
     private String userFullname;
     private String userPhone;
     private String userAvatarUrl;
+
+    private PaymentMethod paymentMethod;
+    private PaymentStatus paymentStatus;
+    private LocalDateTime paidAt;
+
 }
