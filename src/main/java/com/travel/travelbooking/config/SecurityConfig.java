@@ -86,6 +86,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/tour-categories/active").permitAll()
                         .requestMatchers("/api/tour-categories").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/bookings").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/payments/momo/ipn").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/payments/momo/create/**").permitAll()
+
 
 
                         // Các endpoint yêu cầu quyền

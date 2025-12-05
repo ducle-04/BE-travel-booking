@@ -1,21 +1,31 @@
 package com.travel.travelbooking.controller;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.travel.travelbooking.dto.StartDateAvailabilityDTO;
 import com.travel.travelbooking.dto.TourDTO;
 import com.travel.travelbooking.dto.TourStatsDTO;
+import com.travel.travelbooking.entity.Tour;
 import com.travel.travelbooking.entity.TourStatus;
+import com.travel.travelbooking.exception.ResourceNotFoundException;
 import com.travel.travelbooking.payload.ApiResponse;
+import com.travel.travelbooking.repository.BookingRepository;
+import com.travel.travelbooking.repository.TourRepository;
 import com.travel.travelbooking.service.TourService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
+import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
+import java.util.stream.Collectors;
 
 @RestController
 @RequestMapping("/api/tours")
@@ -24,6 +34,9 @@ public class TourController {
 
     private final TourService tourService;
     private final ObjectMapper objectMapper;
+
+    private final TourRepository tourRepository;
+    private final BookingRepository bookingRepository;
 
     // 1. Lấy danh sách tất cả tour (có count bookings & reviews + category)
     @GetMapping
@@ -139,5 +152,43 @@ public class TourController {
         return ResponseEntity.ok(
                 new ApiResponse<>("Xóa tour thành công", null)
         );
+    }
+
+    @Transactional(readOnly = true)
+    @GetMapping("/{tourId}/start-dates")
+    public ResponseEntity<List<StartDateAvailabilityDTO>> getStartDatesWithAvailability(@PathVariable Long tourId) {
+
+        Tour tour = tourRepository.findById(tourId)
+                .orElseThrow(() -> new ResourceNotFoundException("Tour không tồn tại"));
+
+        if (tour.getStatus() != TourStatus.ACTIVE) {
+            return ResponseEntity.ok(List.of()); // hoặc trả về 404 tùy bạn
+        }
+
+        // Tính số người đã đặt (chỉ tính CONFIRMED)
+        long confirmedCount = bookingRepository.getCurrentParticipants(tourId);
+        int remainingSeats = tour.getMaxParticipants() - (int) confirmedCount;
+        boolean hasSeat = remainingSeats > 0;
+
+        List<StartDateAvailabilityDTO> result = tour.getStartDates().stream()
+                .map(ts -> {
+                    StartDateAvailabilityDTO dto = new StartDateAvailabilityDTO();
+                    dto.setDate(ts.getStartDate());
+                    dto.setFormattedDate(formatVietnameseDate(ts.getStartDate()));
+                    dto.setRemainingSeats(remainingSeats);
+                    dto.setAvailable(hasSeat);
+                    return dto;
+                })
+                .sorted(Comparator.comparing(StartDateAvailabilityDTO::getDate))
+                .collect(Collectors.toList());
+
+        return ResponseEntity.ok(result);
+    }
+    private String formatVietnameseDate(LocalDate date) {
+        if (date == null) return "";
+        String[] weekdays = {"CN", "T2", "T3", "T4", "T5", "T6", "T7"};
+        int dayOfWeek = date.getDayOfWeek().getValue() % 7; // Chủ nhật = 0
+        String formatted = date.format(DateTimeFormatter.ofPattern("dd/MM/yyyy"));
+        return formatted + " (" + weekdays[dayOfWeek] + ")";
     }
 }

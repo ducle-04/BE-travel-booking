@@ -39,11 +39,12 @@ public class BookingServiceImpl implements BookingService {
             throw new IllegalArgumentException("Tour hiện không nhận đặt chỗ");
         }
 
+        // === Validate ngày khởi hành ===
         TourStartDate startDateEntity = tourStartDateRepository
                 .findByTourIdAndStartDate(tour.getId(), request.getStartDate())
                 .orElseThrow(() -> new IllegalArgumentException("Ngày khởi hành không hợp lệ hoặc không tồn tại"));
 
-        // === Transport selection ===
+        // === Validate transport ===
         Double transportPrice = 0.0;
         String transportName = null;
 
@@ -58,15 +59,17 @@ public class BookingServiceImpl implements BookingService {
             transportName = selected.getName();
         }
 
+        // === Tính giá ===
         double totalPrice = (tour.getPrice() + transportPrice) * request.getNumberOfPeople();
 
-        // === Check seat availability ===
-        long currentBooked = bookingRepository.getCurrentParticipants(tour.getId());
-        if (currentBooked + request.getNumberOfPeople() > tour.getMaxParticipants()) {
-            throw new IllegalArgumentException("Chỉ còn " + (tour.getMaxParticipants() - currentBooked) + " chỗ trống");
+        // === Chỉ check chỗ với CONFIRMED booking ===
+        long confirmedCount = bookingRepository.getCurrentParticipants(tour.getId());
+        if (confirmedCount + request.getNumberOfPeople() > tour.getMaxParticipants()) {
+            long remaining = tour.getMaxParticipants() - confirmedCount;
+            throw new IllegalArgumentException("Chỉ còn " + remaining + " chỗ trống");
         }
 
-        // === Contact info ===
+        // === Tạo contact ===
         User loggedInUser = userId != null ? userRepository.findById(userId).orElse(null) : null;
 
         BookingContact contact;
@@ -105,30 +108,18 @@ public class BookingServiceImpl implements BookingService {
 
         Booking saved = bookingRepository.save(booking);
 
-        // === Update participants ===
-        tour.setTotalParticipants((int) bookingRepository.getCurrentParticipants(tour.getId()));
-        tourRepository.save(tour);
-
-        // === Create payment record ===
-        PaymentStatus status =
-                request.getPaymentMethod() == PaymentMethod.ONLINE
-                        ? PaymentStatus.PAID
-                        : PaymentStatus.PENDING;
-
+        // === Tạo Payment (PENDING) ===
         Payment payment = Payment.builder()
                 .booking(saved)
                 .method(request.getPaymentMethod())
-                .status(status)
-                .paidAt(status == PaymentStatus.PAID ? LocalDateTime.now() : null)
+                .status(PaymentStatus.PENDING)
                 .build();
 
         paymentRepository.save(payment);
         saved.setPayment(payment);
 
-
         return toDTO(saved);
     }
-
 
     @Override
     public BookingDTO requestCancel(Long bookingId, String reason, Long userId) {
