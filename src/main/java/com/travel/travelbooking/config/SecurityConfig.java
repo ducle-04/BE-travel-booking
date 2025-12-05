@@ -44,17 +44,28 @@ public class SecurityConfig {
     // Load thông tin user từ DB khi login bằng username/password
     @Bean
     public UserDetailsService userDetailsService() {
-        return username -> {
-            var user = userRepository.findByUsername(username);
-            if (user == null)
-                throw new UsernameNotFoundException("User not found");
+        return identifier -> {
+
+            // Tìm theo username
+            var user = userRepository.findByUsername(identifier);
+
+            // Nếu không thấy → tìm theo email
+            if (user == null) {
+                user = userRepository.findByEmail(identifier).orElse(null);
+            }
+
+            if (user == null) {
+                throw new UsernameNotFoundException("Không tìm thấy user: " + identifier);
+            }
+
             return org.springframework.security.core.userdetails.User
-                    .withUsername(user.getUsername())
+                    .withUsername(user.getUsername())  // subject trong JWT vẫn là username
                     .password(user.getPassword() != null ? user.getPassword() : "")
                     .roles(user.getRoles().stream().map(r -> r.getName()).toArray(String[]::new))
                     .build();
         };
     }
+
 
     // JWT Filter xử lý xác thực token
     @Bean

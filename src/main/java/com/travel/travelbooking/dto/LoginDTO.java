@@ -1,13 +1,14 @@
 package com.travel.travelbooking.dto;
 
-import jakarta.validation.constraints.*;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import lombok.Data;
 
 @Data
 public class LoginDTO {
-    @NotBlank(message = "Tên người dùng không được để trống")
-    @Size(min = 3, max = 50, message = "Tên người dùng phải từ 3 đến 50 ký tự")
-    private String username;
+
+    @NotBlank(message = "Vui lòng nhập email hoặc tên đăng nhập")
+    private String username;  // username hoặc email
 
     @NotBlank(message = "Mật khẩu không được để trống")
     @Size(min = 6, max = 100, message = "Mật khẩu phải từ 6 đến 100 ký tự")
