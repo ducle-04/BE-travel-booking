@@ -1,10 +1,6 @@
 package com.travel.travelbooking.service;
 
-import com.travel.travelbooking.dto.BlogCommentDTO;
-import com.travel.travelbooking.dto.BlogDTO;
-import com.travel.travelbooking.dto.BlogSummaryDTO;
-import com.travel.travelbooking.dto.CreateCommentDTO;
-import com.travel.travelbooking.dto.BlogCreateDTO;
+import com.travel.travelbooking.dto.*;
 import org.springframework.data.domain.Page;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.multipart.MultipartFile;
@@ -21,6 +17,8 @@ public interface BlogService {
 
     BlogDTO rejectBlog(Long blogId);
 
+    void deleteBlog(Long id); // ⭐ BỔ SUNG
+
     Page<BlogSummaryDTO> getPublishedBlogs(int page, int size);
 
     BlogDTO getPublishedBlogById(Long id);
@@ -30,4 +28,6 @@ public interface BlogService {
     List<BlogCommentDTO> getComments(Long blogId);
 
     BlogCommentDTO createComment(Long blogId, CreateCommentDTO dto, UserDetails userDetails);
+
+    List<BlogDTO> getAllBlogsForAdmin();
 }

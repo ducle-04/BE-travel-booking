@@ -10,6 +10,7 @@ import java.util.List;
 @Repository
 public interface BlogCommentRepository extends JpaRepository<BlogComment, Long> {
 
+    int countByBlogIdAndStatus(Long blogId, CommentStatus status);
     // Lấy các bình luận đã được duyệt của một bài blog
     List<BlogComment> findByBlogIdAndStatusOrderByCreatedAtDesc(Long blogId, CommentStatus status);
 }
