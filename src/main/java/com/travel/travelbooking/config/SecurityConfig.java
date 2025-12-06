@@ -102,8 +102,6 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/payments/momo/ipn").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/payments/momo/create/**").permitAll()
 
-
-
                         // Các endpoint yêu cầu quyền
                         .requestMatchers("/api/user/profile").authenticated()
                         .requestMatchers("/api/user/avatar").authenticated()
@@ -125,6 +123,9 @@ public class SecurityConfig {
                         .requestMatchers("/api/bookings/{id}/**").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers(HttpMethod.PATCH, "/api/payments/**").hasAnyRole("ADMIN", "STAFF")
 
+                        .requestMatchers(HttpMethod.POST, "/api/reviews/tour/**").authenticated()     // Tạo đánh giá
+                        .requestMatchers(HttpMethod.GET, "/api/reviews/tour/**").permitAll()         // Xem đánh giá
+                        .requestMatchers(HttpMethod.GET, "/api/reviews/tour/**/can-review").authenticated()
 
                         // Còn lại: yêu cầu xác thực
                         .anyRequest().authenticated()

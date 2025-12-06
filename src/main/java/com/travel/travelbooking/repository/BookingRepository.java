@@ -1,9 +1,11 @@
 package com.travel.travelbooking.repository;
 
 import com.travel.travelbooking.dto.BookingStatsDTO;
+import com.travel.travelbooking.dto.LatestBookingDTO;
 import com.travel.travelbooking.entity.Booking;
 import com.travel.travelbooking.entity.BookingStatus;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -57,4 +59,63 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     WHERE b.status != 'DELETED'
     """)
     BookingStatsDTO getBookingStatistics();
+
+    /**
+     * Kiểm tra user đã từng đặt tour này và booking đã COMPLETED chưa
+     */
+    boolean existsByUserIdAndTourIdAndStatus(
+            Long userId,
+            Long tourId,
+            BookingStatus status
+    );
+
+    /**
+     * (Tùy chọn) Lấy booking COMPLETED của user với tour
+     */
+    default Booking findCompletedBookingByUserAndTour(Long userId, Long tourId) {
+        return findByUserIdAndTourIdAndStatus(userId, tourId, BookingStatus.COMPLETED)
+                .stream().findFirst().orElse(null);
+    }
+
+    List<Booking> findByUserIdAndTourIdAndStatus(
+            Long userId,
+            Long tourId,
+            BookingStatus status
+    );
+
+    /**
+     * LẤY 5 ĐƠN ĐẶT TOUR GẦN NHẤT (CONFIRMED, PENDING, CANCELLED...)
+     */
+    @Query("""
+    SELECT new com.travel.travelbooking.dto.LatestBookingDTO(
+    CONCAT('DH', LPAD(CAST(b.id AS string), 6, '0')),
+    c.fullName,
+    c.phoneNumber,
+    COALESCE(u.avatarUrl, '/default-avatar.jpg'),
+    t.name,
+    b.bookingDate,
+    b.status,
+    b.totalPrice
+)
+    FROM Booking b
+    LEFT JOIN b.tour t
+    LEFT JOIN b.contact c
+    LEFT JOIN b.user u
+    WHERE b.status <> 'DELETED'
+    ORDER BY b.bookingDate DESC
+    """)
+    Page<LatestBookingDTO> findLatestBookingsDTO(Pageable pageable);
+
+
+    default List<LatestBookingDTO> findTop5LatestBookings() {
+        return findLatestBookingsDTO(PageRequest.of(0, 5)).getContent();
+    }
+
+    // Doanh thu thực tế (chỉ tính đơn đã hoàn thành tour)
+    @Query("SELECT COALESCE(SUM(b.totalPrice), 0) FROM Booking b WHERE b.status = 'COMPLETED'")
+    Double getActualRevenue();
+
+    // Doanh thu dự kiến (đã xác nhận + đã hoàn thành = chắc chắn thu được)
+    @Query("SELECT COALESCE(SUM(b.totalPrice), 0) FROM Booking b WHERE b.status IN ('CONFIRMED', 'COMPLETED')")
+    Double getExpectedRevenue();
 }

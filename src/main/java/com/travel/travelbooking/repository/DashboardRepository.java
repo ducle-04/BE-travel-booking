@@ -35,4 +35,6 @@ public interface DashboardRepository extends JpaRepository<User, Long> {
         ORDER BY FUNCTION('DATE', u.createdAt)
         """)
     List<Object[]> countNewUsersLast7Days(@Param("sevenDaysAgo") LocalDateTime sevenDaysAgo);
+    @Query("SELECT COUNT(r) FROM Review r")
+    long countTotalReviews();
 }

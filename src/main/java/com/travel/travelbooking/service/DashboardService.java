@@ -6,5 +6,6 @@ import java.util.List;
 
 public interface DashboardService {
     DashboardStatsDTO getUserStats();
+    DashboardStatsDTO getFullDashboardStats(); // ← bắt buộc implement
     List<Object[]> getUserRegistrationLast7Days();
 }

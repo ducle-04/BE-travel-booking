@@ -44,7 +44,7 @@ public class TourDTO {
     @NotNull(message = "Số người tối đa không được để trống")
     @Min(value = 1, message = "Số người tối đa phải ít nhất là 1")
     private Integer maxParticipants;
-
+    private Long views;
     private TourStatus status;
     private LocalDateTime createdAt;
 
@@ -87,7 +87,7 @@ public class TourDTO {
                    Double price, String imageUrl, String description, Double averageRating,
                    Integer totalParticipants, TourStatus status, LocalDateTime createdAt,
                    Long bookingsCount, Long reviewsCount, Integer maxParticipants,
-                   Long categoryId, String categoryName, String categoryIcon) {
+                   Long categoryId, String categoryName, String categoryIcon, Long views) {
         this(id, name, destinationId, destinationName, duration, price, imageUrl, description,
                 averageRating, totalParticipants, status, createdAt, maxParticipants);
         this.bookingsCount = bookingsCount;
@@ -95,5 +95,6 @@ public class TourDTO {
         this.categoryId = categoryId;
         this.categoryName = categoryName;
         this.categoryIcon = categoryIcon;
+        this.views = views != null ? views : 0L;
     }
 }

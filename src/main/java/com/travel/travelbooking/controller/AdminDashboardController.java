@@ -30,4 +30,9 @@ public class AdminDashboardController {
     public ResponseEntity<List<Object[]>> getRegistrationChart() {
         return ResponseEntity.ok(dashboardService.getUserRegistrationLast7Days());
     }
+
+    @GetMapping("/stats/full")
+    public ResponseEntity<DashboardStatsDTO> getFullStats() {
+        return ResponseEntity.ok(dashboardService.getFullDashboardStats());
+    }
 }

@@ -77,12 +77,20 @@ public class TourServiceImpl implements TourService {
     }
 
     @Override
-    @Transactional(readOnly = true)
+    @Transactional
     public TourDTO getTourById(Long id) {
         validateId(id);
+
+        // TĂNG LƯỢT XEM (native query - hiệu suất cực cao, không load entity)
+        tourRepository.incrementViews(id);
+
+        // Lấy dữ liệu tour với tất cả thông tin (views đã được tăng +1)
         TourDTO dto = tourRepository.findByIdWithCounts(id)
-                .orElseThrow(() -> new ResourceNotFoundException("Tour không tồn tại"));
+                .orElseThrow(() -> new ResourceNotFoundException("Tour không tồn tại hoặc đã bị xóa"));
+
+        // Load thêm TourDetail + StartDates như cũ
         enhanceWithDetails(List.of(dto));
+
         return dto;
     }
 

@@ -39,6 +39,9 @@ public class Tour {
     @Column(nullable = false)
     private Integer maxParticipants;
 
+    @Column(name = "views", nullable = false, columnDefinition = "BIGINT DEFAULT 0")
+    private Long views = 0L;
+
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)
     private TourStatus status;

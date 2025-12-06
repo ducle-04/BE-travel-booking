@@ -6,24 +6,25 @@ import java.time.LocalDateTime;
 
 @Entity
 @Data
-@Table(name = "reviews")
+@Table(
+        name = "reviews",
+        indexes = @Index(name = "idx_review_user_tour", columnList = "user_id, tour_id", unique = true)
+)
 public class Review {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    // Người đánh giá
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "user_id", nullable = false)
     private User user;
 
-    // Tour được đánh giá
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "tour_id", nullable = false)
     private Tour tour;
 
     @Column(nullable = false)
-    private int rating; // số sao (1–5)
+    private int rating;
 
     @Column(length = 2000)
     private String comment;
