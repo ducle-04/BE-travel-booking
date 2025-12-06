@@ -2,6 +2,7 @@ package com.travel.travelbooking.service;
 
 import com.travel.travelbooking.dto.BookingCreateRequest;
 import com.travel.travelbooking.dto.BookingDTO;
+import com.travel.travelbooking.dto.BookingStatsDTO;
 import com.travel.travelbooking.entity.*;
 import com.travel.travelbooking.exception.ResourceNotFoundException;
 import com.travel.travelbooking.repository.*;
@@ -139,6 +140,17 @@ public class BookingServiceImpl implements BookingService {
 
     @Override
     @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
+    @Transactional(readOnly = true)
+    public BookingDTO getBookingDetailById(Long id) {
+        Booking booking = bookingRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Booking không tồn tại"));
+
+        // Không cần kiểm tra user vì admin/staff được xem tất cả
+        return toDTO(booking);
+    }
+
+    @Override
+    @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
     public BookingDTO confirmBooking(Long bookingId) {
         Booking booking = getBookingForAdmin(bookingId);
 
@@ -265,6 +277,13 @@ public class BookingServiceImpl implements BookingService {
         ).map(this::toDTO);
     }
 
+    @Override
+    @Transactional(readOnly = true)
+    @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
+    public BookingStatsDTO getBookingStatistics() {
+        return bookingRepository.getBookingStatistics();
+    }
+
     // === GIỮ NGUYÊN LOGIC CŨ – toDTO RIÊNG TRONG IMPL ===
     private Booking getBookingByIdAndUser(Long id, Long userId) {
         return bookingRepository.findById(id)
@@ -285,7 +304,7 @@ public class BookingServiceImpl implements BookingService {
         tourRepository.save(tour);
     }
 
-    private BookingDTO toDTO(Booking b) {
+    public BookingDTO toDTO(Booking b) {
         BookingDTO dto = new BookingDTO();
         dto.setId(b.getId());
         dto.setTourId(b.getTour().getId());

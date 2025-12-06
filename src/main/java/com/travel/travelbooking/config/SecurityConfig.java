@@ -119,6 +119,10 @@ public class SecurityConfig {
                         .requestMatchers("/api/admin/dashboard/**").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers("/api/tour-categories",
                                 "/api/tour-categories/**").hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers("/api/bookings/my","/api/bookings/{id}/cancel").authenticated()
+                        .requestMatchers("/api/bookings/pending", "/api/bookings/stats").hasAnyRole("ADMIN", "STAFF")
+                        .requestMatchers(HttpMethod.GET, "/api/bookings/{id}").authenticated()
+                        .requestMatchers("/api/bookings/{id}/**").hasAnyRole("ADMIN", "STAFF")
                         .requestMatchers(HttpMethod.PATCH, "/api/payments/**").hasAnyRole("ADMIN", "STAFF")
 
 

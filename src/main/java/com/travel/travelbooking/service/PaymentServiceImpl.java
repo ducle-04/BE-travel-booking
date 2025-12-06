@@ -3,6 +3,7 @@ package com.travel.travelbooking.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.travel.travelbooking.config.MomoConfig;
+import com.travel.travelbooking.dto.BookingDTO;
 import com.travel.travelbooking.dto.PaymentDTO;
 import com.travel.travelbooking.entity.*;
 import com.travel.travelbooking.repository.BookingRepository;
@@ -27,6 +28,7 @@ public class PaymentServiceImpl implements PaymentService {
     private final PaymentRepository paymentRepository;
     private final MomoConfig momoConfig;
     private final RestTemplate restTemplate;
+    private final BookingService bookingService;
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
@@ -136,5 +138,28 @@ public class PaymentServiceImpl implements PaymentService {
                 payment.getPaidAt(),
                 booking.getId()
         );
+    }
+
+    @Override
+    public BookingDTO updatePaymentStatus(Long bookingId, PaymentStatus status) {
+
+        Booking booking = bookingRepository.findById(bookingId)
+                .orElseThrow(() -> new RuntimeException("Booking không tồn tại"));
+
+        Payment payment = booking.getPayment();
+        if (payment == null) {
+            throw new RuntimeException("Booking chưa có thông tin thanh toán");
+        }
+
+        payment.setStatus(status);
+
+        if (status == PaymentStatus.PAID) {
+            payment.setPaidAt(LocalDateTime.now());
+        }
+
+        paymentRepository.save(payment);
+
+        // ⭐ Convert entity -> DTO bằng BookingServiceImpl (đã có toDTO())
+        return bookingService.toDTO(booking);
     }
 }

@@ -1,5 +1,6 @@
 package com.travel.travelbooking.repository;
 
+import com.travel.travelbooking.dto.BookingStatsDTO;
 import com.travel.travelbooking.entity.Booking;
 import com.travel.travelbooking.entity.BookingStatus;
 import org.springframework.data.domain.Page;
@@ -41,4 +42,19 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     long getCurrentParticipants(@Param("tourId") Long tourId);
 
     List<Booking> findByContactEmailAndUserIsNull(String email);
+
+    @Query("""
+    SELECT new com.travel.travelbooking.dto.BookingStatsDTO(
+        COUNT(b),
+        SUM(CASE WHEN b.status = 'PENDING' THEN 1 ELSE 0 END),
+        SUM(CASE WHEN b.status = 'CONFIRMED' THEN 1 ELSE 0 END),
+        SUM(CASE WHEN b.status = 'CANCEL_REQUEST' THEN 1 ELSE 0 END),
+        SUM(CASE WHEN b.status = 'CANCELLED' THEN 1 ELSE 0 END),
+        SUM(CASE WHEN b.status = 'REJECTED' THEN 1 ELSE 0 END),
+        SUM(CASE WHEN b.status = 'COMPLETED' THEN 1 ELSE 0 END)
+    )
+    FROM Booking b
+    WHERE b.status != 'DELETED'
+    """)
+    BookingStatsDTO getBookingStatistics();
 }

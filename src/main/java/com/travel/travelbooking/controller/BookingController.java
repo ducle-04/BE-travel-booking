@@ -2,6 +2,7 @@ package com.travel.travelbooking.controller;
 
 import com.travel.travelbooking.dto.BookingCreateRequest;
 import com.travel.travelbooking.dto.BookingDTO;
+import com.travel.travelbooking.dto.BookingStatsDTO;
 import com.travel.travelbooking.entity.BookingStatus;
 import com.travel.travelbooking.entity.User;
 import com.travel.travelbooking.entity.UserStatus;
@@ -138,5 +139,21 @@ public class BookingController {
     public ResponseEntity<?> completeBooking(@PathVariable Long id) {
         BookingDTO booking = bookingService.completeBooking(id);
         return ResponseEntity.ok(new ApiResponse<>("Tour đã được đánh dấu hoàn thành", booking));
+    }
+
+    // 11. Admin/Staff xem chi tiết 1 booking bất kỳ
+    @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
+    @GetMapping("/{id}")
+    public ResponseEntity<?> getBookingDetail(@PathVariable Long id) {
+        BookingDTO booking = bookingService.getBookingDetailById(id);
+        return ResponseEntity.ok(new ApiResponse<>("Chi tiết booking", booking));
+    }
+
+    // 12. Dashboard thống kê trạng thái booking
+    @PreAuthorize("hasRole('ADMIN') or hasRole('STAFF')")
+    @GetMapping("/stats")
+    public ResponseEntity<?> getBookingStats() {
+        BookingStatsDTO stats = bookingService.getBookingStatistics();
+        return ResponseEntity.ok(new ApiResponse<>("Thống kê booking", stats));
     }
 }
