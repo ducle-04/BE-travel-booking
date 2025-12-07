@@ -5,7 +5,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 @Data
-@NoArgsConstructor      // ← BẮT BUỘC PHẢI CÓ
+@NoArgsConstructor
 @AllArgsConstructor
 public class PopularTourDTO {
     private Long tourId;
