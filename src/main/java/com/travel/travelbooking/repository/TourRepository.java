@@ -294,6 +294,7 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
         t.name,
         t.imageUrl,
         d.name,
+        t.description, 
         COALESCE(t.views, 0),
         COUNT(DISTINCT b.id),
         COUNT(DISTINCT r.id),
@@ -307,14 +308,14 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
     LEFT JOIN t.bookings b ON b.status = com.travel.travelbooking.entity.BookingStatus.CONFIRMED
     LEFT JOIN t.reviews r
     WHERE t.status = com.travel.travelbooking.entity.TourStatus.ACTIVE
-    GROUP BY t.id, t.name, t.imageUrl, d.name, t.views, t.averageRating
+    GROUP BY t.id, t.name, t.imageUrl, d.name, t.description, t.views, t.averageRating
     ORDER BY 
         (COALESCE(t.views, 0) * 0.3) + 
         (COUNT(DISTINCT b.id) * 0.5) + 
         (COUNT(DISTINCT r.id) * 0.2) DESC
-    """)
+    """
+    )
     Page<PopularTourDTO> findTopPopularTours(Pageable pageable);
-
 
     // Top 10 (dùng trong dashboard)
     default List<PopularTourDTO> findTop10PopularTours() {
@@ -348,14 +349,16 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
         t.id,
         t.name,
         t.imageUrl,
+        t.description,
         d.name,
-        t.createdAt
+        t.createdAt,
+        t.status
     )
     FROM Tour t
     LEFT JOIN t.destination d
-    WHERE t.status != 'DELETED'
+    WHERE t.status <> com.travel.travelbooking.entity.TourStatus.DELETED
     ORDER BY t.createdAt DESC
-    """)
+""")
     Page<LatestTourDTO> findLatestTours(Pageable pageable);
 
     default List<LatestTourDTO> findTop10LatestTours() {

@@ -12,6 +12,7 @@ public class PopularTourDTO {
     private String tourName;
     private String imageUrl;
     private String destinationName;
+    private String description;
     private Long views;
     private Long bookingsCount;
     private Long reviewsCount;

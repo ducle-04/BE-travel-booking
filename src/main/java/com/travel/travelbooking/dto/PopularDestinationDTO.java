@@ -13,6 +13,7 @@ public class PopularDestinationDTO {
     private String destinationName;
     private String imageUrl;
     private Region region;
+    private String description;
     private Long tourCount;
     private Long totalViews;
     private Long bookingCount;

@@ -101,6 +101,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/api/bookings").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/payments/momo/ipn").permitAll()
                         .requestMatchers(HttpMethod.POST, "/api/payments/momo/create/**").permitAll()
+                        .requestMatchers("/api/dashboard/**").permitAll()
 
                         // Các endpoint yêu cầu quyền
                         .requestMatchers("/api/user/profile").authenticated()

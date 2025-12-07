@@ -92,6 +92,7 @@ public interface DestinationRepository extends JpaRepository<Destination, Long> 
         d.name,
         d.imageUrl,
         d.region,
+        d.description,
         COUNT(DISTINCT t.id),
         COALESCE(SUM(t.views), 0),
         COUNT(DISTINCT b.id)
@@ -100,7 +101,7 @@ public interface DestinationRepository extends JpaRepository<Destination, Long> 
     LEFT JOIN d.tours t ON t.status = com.travel.travelbooking.entity.TourStatus.ACTIVE
     LEFT JOIN t.bookings b ON b.status = com.travel.travelbooking.entity.BookingStatus.CONFIRMED
     WHERE d.status = com.travel.travelbooking.entity.DestinationStatus.ACTIVE
-    GROUP BY d.id, d.name, d.imageUrl, d.region
+    GROUP BY d.id, d.name, d.imageUrl, d.region, d.description
     ORDER BY 
         COUNT(DISTINCT t.id) * 0.4 +
         COALESCE(SUM(t.views), 0) * 0.00001 +
