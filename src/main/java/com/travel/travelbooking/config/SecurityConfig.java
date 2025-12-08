@@ -128,7 +128,23 @@ public class SecurityConfig {
 
                         .requestMatchers(HttpMethod.POST, "/api/reviews/tour/**").authenticated()     // Tạo đánh giá
                         .requestMatchers(HttpMethod.GET, "/api/reviews/tour/**").permitAll()         // Xem đánh giá
-                        .requestMatchers(HttpMethod.GET, "/api/reviews/tour/**/can-review").authenticated()
+                        .requestMatchers(HttpMethod.GET, "/api/reviews/tour/*/can-review").authenticated()
+
+                        // =================== SUPPORT / CONTACT ===================
+                        // GUEST gửi liên hệ
+                        .requestMatchers(HttpMethod.POST, "/api/support/contact").permitAll()
+                        // USER xem danh sách ticket của chính họ
+                        .requestMatchers(HttpMethod.GET, "/api/support/my-conversations").hasRole("USER")
+                        // USER xem chi tiết ticket của chính họ
+                        .requestMatchers(HttpMethod.GET, "/api/support/my-conversation/**").hasRole("USER")
+                        // STAFF / ADMIN: xem chi tiết tất cả conversation
+                        .requestMatchers(HttpMethod.GET, "/api/support/conversation/**").hasAnyRole("ADMIN", "STAFF")
+                        // STAFF / ADMIN: xem tất cả conversation
+                        .requestMatchers(HttpMethod.GET, "/api/support/conversations").hasAnyRole("ADMIN", "STAFF")
+                        // STAFF / ADMIN: đóng conversation
+                        .requestMatchers(HttpMethod.PUT, "/api/support/close/**").hasAnyRole("ADMIN", "STAFF")
+                        // USER hoặc STAFF reply vào conversation đúng quyền (backend tự kiểm tra)
+                        .requestMatchers(HttpMethod.POST, "/api/support/reply/**").authenticated()
 
                         // Còn lại: yêu cầu xác thực
                         .anyRequest().authenticated()
