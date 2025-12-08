@@ -1,20 +1,21 @@
 package com.travel.travelbooking.service;
 
-import com.travel.travelbooking.dto.*;
+import com.travel.travelbooking.dto.ChatHistoryDTO;
 import com.travel.travelbooking.entity.*;
 import com.travel.travelbooking.repository.*;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -41,7 +42,9 @@ public class GroqChatService {
 
     public String chat(String userMessage, String username) {
         User user = username != null ? userRepository.findByUsername(username) : null;
-        String reply = callGroq(userMessage, buildSmartContext(userMessage.toLowerCase()));
+        String context = buildSmartContext(userMessage.toLowerCase());
+
+        String reply = callGroq(userMessage, context, user);
 
         if (user != null) {
             ChatHistory h = new ChatHistory();
@@ -53,38 +56,97 @@ public class GroqChatService {
         return reply;
     }
 
+    // ==================== LỊCH SỬ CHAT ====================
+    private List<Map<String, String>> buildRecentHistoryMessages(User user) {
+        if (user == null) return Collections.emptyList();
+
+        return historyRepository.findTop5ByUserOrderByTimestampDesc(user)
+                .stream()
+                .sorted(Comparator.comparing(ChatHistory::getTimestamp))
+                .map(h -> List.of(
+                        Map.of("role", "user", "content", h.getUserMessage()),
+                        Map.of("role", "assistant", "content", h.getBotReply())
+                ))
+                .flatMap(List::stream)
+                .collect(Collectors.toList());
+    }
+
+    @Cacheable(value = "chatContext", key = "#msg.hashCode()", unless = "#result.length() > 2500")
     private String buildSmartContext(String msg) {
-        StringBuilder ctx = new StringBuilder("=== DỮ LIỆU DU LỊCH MỚI NHẤT ===\n\n");
 
-        // Top điểm đến
-        destinationRepository.findTop5PopularDestinations().forEach(d ->
-                ctx.append(String.format("Hot %s (%s) - %d tour - %d lượt đặt\n",
-                        d.getDestinationName(), formatRegion(d.getRegion()), d.getTourCount(), d.getBookingCount()))
-        );
+        StringBuilder ctx = new StringBuilder("=== TOUR HOT & DỮ LIỆU MỚI NHẤT ===\n");
+
+        // TOP ĐIỂM ĐẾN HOT
+        ctx.append("ĐIỂM ĐẾN ĐANG HOT NHẤT HIỆN TẠI:\n");
+        destinationRepository.findTop5PopularDestinations()
+                .forEach(d -> {
+                    String regionText = switch (d.getRegion()) {
+                        case BAC -> "miền Bắc";
+                        case TRUNG -> "miền Trung";
+                        case NAM -> "miền Nam";
+                        default -> "Việt Nam";
+                    };
+
+                    String hotness = d.getBookingCount() > 500 ? "siêu hot, đang cháy hàng"
+                            : d.getBookingCount() > 200 ? "rất được ưa chuộng"
+                            : "đang lên ngôi";
+
+                    ctx.append(String.format("• %s (%s) – %s với %d tour và %d lượt đặt\n",
+                            d.getDestinationName(), regionText, hotness, d.getTourCount(), d.getBookingCount()));
+                });
         ctx.append("\n");
 
-        // Top tour nổi bật
-        tourRepository.findTop10PopularTours().stream().limit(8).forEach(t -> {
-            Tour tour = tourRepository.findById(t.getTourId()).orElse(null);
-            if (tour == null) return;
+        // PHÂN TÍCH GIÁ (khoảng giá min–max)
+        Double[] range = extractPriceRange(msg);
+        boolean hasPriceFilter = range != null;
 
-            int slotsLeft = tour.getMaxParticipants() - tour.getTotalParticipants();
-            List<String> dates = startDateRepository.findStartDatesByTourId(t.getTourId())
-                    .stream().limit(4).map(d -> d.format(df)).toList();
+        // Chỉ hiển thị TOP TOUR HOT nếu user không yêu cầu lọc giá
+        if (!hasPriceFilter) {
+            ctx.append("TOUR ĐANG HOT NHẤT:\n");
+            tourRepository.findTop10PopularTours().stream().limit(6).forEach(t -> {
+                Tour tour = tourRepository.findById(t.getTourId()).orElse(null);
+                if (tour == null) return;
 
-            ctx.append(String.format("Star %s → %s | %.0fđ | %.1f★ | Còn %d chỗ | Khởi hành: %s\n",
-                    t.getTourName(), t.getDestinationName(), tour.getPrice(), t.getAverageRating(),
-                    slotsLeft, dates.isEmpty() ? "Liên hệ" : String.join(", ", dates)));
-        });
-        ctx.append("\n");
+                int left = tour.getMaxParticipants() - tour.getTotalParticipants();
+                String dates = startDateRepository.findStartDatesByTourId(t.getTourId())
+                        .stream().limit(3)
+                        .map(d -> d.format(df))
+                        .collect(Collectors.joining(", "));
 
-        // Danh mục
-        ctx.append("Danh mục tour: ")
-                .append(String.join(", ", categoryRepository.findByStatusOrderByDisplayOrderAsc(CategoryStatus.ACTIVE)
-                        .stream().map(TourCategory::getName).toList()))
-                .append("\n\n");
+                String seatInfo = left <= 0 ? "hết chỗ rồi ạ"
+                        : left <= 5 ? "chỉ còn " + left + " chỗ cuối cùng"
+                        : "còn " + left + " chỗ";
 
-        // Tìm kiếm từ khóa
+                ctx.append(String.format("• %s đi %s – %.0fđ – %s – ngày %s. /tour/%d\n",
+                        t.getTourName(), t.getDestinationName(), tour.getPrice(),
+                        seatInfo, dates, t.getTourId()));
+            });
+            ctx.append("\n");
+        }
+
+        // Nếu user lọc giá → chỉ đưa tour phù hợp giá vào context
+        if (hasPriceFilter) {
+            Double min = range[0];
+            Double max = range[1];
+
+            ctx.append("TOUR THEO KHOẢNG GIÁ:\n");
+
+            tourRepository.findFilteredTours(
+                    null,
+                    TourStatus.ACTIVE,
+                    min,
+                    max,
+                    null,
+                    org.springframework.data.domain.PageRequest.of(0, 12)
+            ).forEach(t -> ctx.append(
+                    String.format("• %s – %.0fđ – %s – Link: /tour/%d\n",
+                            t.getName(), t.getPrice(), t.getDestinationName(), t.getId())
+            ));
+
+            ctx.append("\n");
+        }
+
+        // Lọc theo từ khóa
         String keyword = extractMainKeyword(msg);
         if (keyword.length() >= 2) {
             tourRepository.findByNameContainingIgnoreCaseWithCounts(keyword)
@@ -97,136 +159,168 @@ public class GroqChatService {
                         ctx.append(String.format("""
                         ──────────────────
                         Tour %s
-                        Điểm đến: %s | Loại: %s
-                        Giá: %.0fđ | Thời gian: %s
+                        Điểm đến: %s
+                        Giá: %.0fđ
                         Còn %d/%d chỗ
                         Khởi hành: %s
-                        Đánh giá: %.1f★ | Link: /tour/%d
+                        Link: /tour/%d
                         """,
-                                t.getName(), t.getDestinationName(),
-                                Optional.ofNullable(t.getCategoryName()).orElse("Khác"),
-                                t.getPrice(), t.getDuration(),
+                                t.getName(),
+                                t.getDestinationName(),
+                                t.getPrice(),
                                 left, t.getMaxParticipants(),
                                 dates.isEmpty() ? "Liên hệ" : String.join(", ", dates),
-                                t.getAverageRating(), t.getId()));
+                                t.getId()));
                     });
             ctx.append("\n");
         }
 
-        // Giá rẻ
-        Double maxPrice = extractPrice(msg);
-        if (maxPrice != null) {
-            ctx.append(String.format("Tour giá dưới %.0fđ:\n", maxPrice));
-            tourRepository.findFilteredTours(null, TourStatus.ACTIVE, null, maxPrice, null,
-                            org.springframework.data.domain.PageRequest.of(0, 10))
-                    .forEach(t -> ctx.append(String.format("• %s - %.0fđ - %s\n",
-                            t.getName(), t.getPrice(), t.getDestinationName())));
-            ctx.append("\n");
-        }
-
-        // Theo miền
+        // Lọc theo vùng
         Region region = detectRegion(msg);
         if (region != null) {
-            ctx.append(String.format("Điểm đến miền %s:\n", formatRegion(region)));
+            String reg = switch (region) {
+                case BAC -> "miền Bắc";
+                case TRUNG -> "miền Trung";
+                case NAM -> "miền Nam";
+            };
+            ctx.append("Tour khu vực ").append(reg).append(" nổi bật:\n");
             destinationRepository.findByRegionWithTourCount(region)
+                    .stream().limit(6)
                     .forEach(d -> ctx.append(String.format("• %s (%d tour)\n",
-                            d.getName(), d.getToursCount() != null ? d.getToursCount() : 0)));
+                            d.getName(), d.getToursCount())));
         }
 
         String result = ctx.toString();
-        return result.length() > 7500 ? result.substring(0, 7500) + "\n...(còn nhiều tour khác)" : result;
+        return result.length() > 2200
+                ? result.substring(0, 2200) + "\n...Còn nhiều tour khác nữa!"
+                : result;
     }
 
-    private String formatRegion(Region r) {
-        return switch (r) {
-            case BAC -> "Bắc";
-            case TRUNG -> "Trung";
-            case NAM -> "Nam";
-        };
-    }
+    // ==================== CALL GROQ ====================
+    private String callGroq(String userMessage, String context, User user) {
 
-    private String extractMainKeyword(String msg) {
-        return msg.replaceAll("(?i)\\b(tìm|tour|đi|đến|muốn|cho|ở|không|à|ạ|nhé|du lịch|được|gì|có|muốn)\\b", " ")
-                .replaceAll("\\s+", " ").trim();
-    }
-
-    private Double extractPrice(String msg) {
-        Matcher m = Pattern.compile("(\\d+[.,]?\\d*)\\s*(tr|triệu|ngàn|k|đồng|đ)", Pattern.CASE_INSENSITIVE)
-                .matcher(msg.replaceAll("\\s", ""));
-        if (m.find()) {
-            double val = Double.parseDouble(m.group(1).replace(",", "."));
-            String unit = m.group(0).toLowerCase();
-            if (unit.contains("tr")) val *= 1_000_000;
-            else if (unit.contains("ngàn") || unit.contains("k")) val *= 1_000;
-            return val;
-        }
-        return null;
-    }
-
-    private Region detectRegion(String msg) {
-        if (msg.matches(".*\\b(bắc|miền bắc|hà nội|sapa|ha long|hạ long)\\b.*")) return Region.BAC;
-        if (msg.matches(".*\\b(trung|miền trung|đà nẵng|huế|hội an|phong nha)\\b.*")) return Region.TRUNG;
-        if (msg.matches(".*\\b(nam|miền nam|phú quốc|sài gòn|hồ chí minh|vũng tàu|cần thơ)\\b.*")) return Region.NAM;
-        return null;
-    }
-
-    // Thay thế toàn bộ method callGroq() bằng cái này:
-    @SuppressWarnings("unchecked")
-    private String callGroq(String userMessage, String context) {
         String systemPrompt = """
-            Bạn là trợ lý du lịch siêu thân thiện, nói tiếng Việt tự nhiên như người thật.
-            Chỉ dùng dữ liệu thực tế bên dưới, không bịa thông tin.
-            Gợi ý tour kèm tên, giá, ngày khởi hành, chỗ trống, và link /tour/{id}
-            Nếu không biết → "Mình chưa tìm thấy tour phù hợp, bạn cho thêm thông tin nhé!"
+        Bạn là tư vấn viên du lịch siêu nhiệt tình, dễ thương và nói chuyện cực kỳ tự nhiên như người thật.
+        Trả lời ngắn gọn 3-5 câu thôi, dùng nhiều emoji vui vẻ, ngôn ngữ gần gũi, hay dùng từ "ạ", "nha", "luôn ạ".
+        Chỉ dùng dữ liệu thực tế bên dưới, không bịa thông tin.
+        Gợi ý tour kèm tên + giá + chỗ trống + ngày đi + link /tour/{id}
+        
+        QUAN TRỌNG:
+        - Nhớ chính xác những gì khách đã nói ở các lượt trước (xem lịch sử chat bên dưới).
+        - Nếu có tour phù hợp → gợi ý luôn thật tự nhiên, không hỏi thừa.
+        - Chỉ khi không có tour nào mới hỏi thêm thông tin.
+        
+        LƯU Ý BẮT BUỘC:
+        - Chỉ gợi ý tour có trong danh sách context bên dưới.
+        - Không được tự tạo tour, tự tạo ngày, giá, ID.
+        - Nếu tour không còn tồn tại hoặc đã bị xóa → KHÔNG ĐƯỢC NHẮC ĐẾN.
+        - Nếu không tìm thấy tour phù hợp -> "Mình chưa tìm thấy tour phù hợp, bạn cho thêm thông tin nhé!"
             
-            DỮ LIỆU MỚI NHẤT:
-            """ + context;
+        Luôn kết thúc bằng 1 câu hỏi mở để kéo khách tiếp tục chat.
+        
+        DỮ LIỆU TOUR HOT (cập nhật realtime):
+        """ + context;
+        List<Map<String, String>> messages = new ArrayList<>();
+        messages.add(Map.of("role", "system", "content", systemPrompt));
 
-        var messages = List.of(
-                Map.of("role", "system", "content", systemPrompt),
-                Map.of("role", "user", "content", userMessage)
+        messages.addAll(buildRecentHistoryMessages(user));
+        messages.add(Map.of("role", "user", "content", userMessage));
+
+        // Luôn giữ system prompt
+        if (messages.size() > 15) {
+            List<Map<String, String>> trimmed = new ArrayList<>();
+            trimmed.add(messages.get(0));
+            int from = messages.size() - 14;
+            trimmed.addAll(messages.subList(Math.max(from, 1), messages.size()));
+            messages = trimmed;
+        }
+
+        var body = Map.of(
+                "model", model,
+                "messages", messages,
+                "temperature", 0.75,
+                "max_tokens", 420
         );
 
-        var body = Map.of("model", model, "messages", messages, "temperature", 0.65, "max_tokens", 1200);
         var headers = new HttpHeaders();
         headers.setContentType(MediaType.APPLICATION_JSON);
         headers.setBearerAuth(groqApiKey);
 
         try {
-            var response = restTemplate.exchange(apiUrl, HttpMethod.POST, new HttpEntity<>(body, headers),
-                    new ParameterizedTypeReference<Map<String, Object>>() {});
+            ResponseEntity<Map<String, Object>> response = restTemplate.exchange(
+                    apiUrl, HttpMethod.POST, new HttpEntity<>(body, headers),
+                    new ParameterizedTypeReference<Map<String, Object>>() {}
+            );
 
-            var res = response.getBody();
+            Map<String, Object> res = response.getBody();
             if (res == null || !res.containsKey("choices")) {
-                return "Mình đang hơi chậm, bạn thử lại nha! 😅";
+                return "Em hơi lag xíu, anh/chị nhắn lại giúp em nha!";
             }
 
-            // Safe cast với @SuppressWarnings
-            var choices = (List<Map<String, Object>>) res.get("choices");
-            var choice = choices.get(0);
-            var message = (Map<String, String>) choice.get("message");
+            Map<String, Object> message = (Map<String, Object>)
+                    ((List<?>) res.get("choices")).get(0);
 
-            return message.get("content").trim();
-
+            String content = (String) ((Map<?, ?>) message.get("message")).get("content");
+            return content != null ? content.trim() : "Em bị lỗi xíu, mình nhắn lại nha!";
         } catch (Exception e) {
-            return "Mình đang gặp chút lỗi mạng. Bạn thử lại sau 30s nhé! 🙏";
+            e.printStackTrace();
+            return "Hệ thống lỗi nhẹ ạ, anh/chị thử lại sau 30 giây nha!";
         }
+    }
+
+    // ==================== TIỆN ÍCH ====================
+    private String extractMainKeyword(String msg) {
+        return msg.replaceAll("(?i)\\b(tìm|tour|đi|đến|muốn|cho|ở|không|à|ạ|nhé|du lịch|được|gì|có|em|anh|chị|giá rẻ|khuyến mãi|dưới|trên|khoảng|)\\b", " ")
+                .replaceAll("\\s+", " ").trim();
+    }
+
+    private Double[] extractPriceRange(String msg) {
+        // Regex đúng trong JAVA (chỉ dùng \\ khi cần)
+        Pattern pattern = Pattern.compile("(\\d+(?:[.,]\\d+)?)(?:\\s*(tr|triệu|t|ngàn|k|đ|đồng))?", Pattern.CASE_INSENSITIVE);
+        Matcher m = pattern.matcher(msg);
+
+        List<Double> prices = new ArrayList<>();
+
+        while (m.find()) {
+            double val = Double.parseDouble(m.group(1).replace(",", "."));
+
+            String unit = m.group(2); // đơn vị có thể null
+            if (unit != null) {
+                unit = unit.toLowerCase();
+                if (unit.contains("tr") || unit.contains("triệu") || unit.equals("t"))
+                    val *= 1_000_000;
+                else if (unit.contains("ngàn") || unit.contains("k"))
+                    val *= 1_000;
+            }
+
+            prices.add(val);
+        }
+
+        if (prices.size() == 1) return new Double[]{null, prices.get(0)};
+        if (prices.size() >= 2) return new Double[]{prices.get(0), prices.get(1)};
+        return null;
+    }
+
+
+    private Region detectRegion(String msg) {
+        if (msg.matches(".*\\b(bắc|miền bắc|hà nội|sapa|ha long|hạ long|mai châu)\\b.*")) return Region.BAC;
+        if (msg.matches(".*\\b(trung|miền trung|đà nẵng|huế|hội an|đà lạt|quảng bình|quy nhơn)\\b.*")) return Region.TRUNG;
+        if (msg.matches(".*\\b(nam|miền nam|phú quốc|sài gòn|hồ chí minh|vũng tàu|cần thơ|mũi né)\\b.*")) return Region.NAM;
+        return null;
     }
 
     public List<ChatHistoryDTO> getHistory(String username) {
         User user = userRepository.findByUsername(username);
-        if (user == null) {
-            return Collections.emptyList();
-        }
+        if (user == null) return Collections.emptyList();
 
         return historyRepository.findByUserIdOrderByTimestampAsc(user.getId())
                 .stream()
-                .map(history -> new ChatHistoryDTO(
-                        history.getId(),
-                        history.getUserMessage(),
-                        history.getBotReply(),
-                        history.getTimestamp(),
-                        user.getUsername() // hoặc history.getUser().getUsername() nếu muốn lấy từ entity
+                .map(h -> new ChatHistoryDTO(
+                        h.getId(),
+                        h.getUserMessage(),
+                        h.getBotReply(),
+                        h.getTimestamp(),
+                        username
                 ))
                 .toList();
     }
