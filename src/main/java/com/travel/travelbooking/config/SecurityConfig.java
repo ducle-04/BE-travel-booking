@@ -133,6 +133,7 @@ public class SecurityConfig {
                         // =================== SUPPORT / CONTACT ===================
                         // GUEST gửi liên hệ
                         .requestMatchers(HttpMethod.POST, "/api/support/contact").permitAll()
+                        .requestMatchers("/ws-support/**", "/ws-support").permitAll()
                         // USER xem danh sách ticket của chính họ
                         .requestMatchers(HttpMethod.GET, "/api/support/my-conversations").hasRole("USER")
                         // USER xem chi tiết ticket của chính họ
@@ -145,6 +146,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.PUT, "/api/support/close/**").hasAnyRole("ADMIN", "STAFF")
                         // USER hoặc STAFF reply vào conversation đúng quyền (backend tự kiểm tra)
                         .requestMatchers(HttpMethod.POST, "/api/support/reply/**").authenticated()
+                        .requestMatchers(HttpMethod.PUT, "/api/support/read/**").authenticated()
 
                         // Còn lại: yêu cầu xác thực
                         .anyRequest().authenticated()

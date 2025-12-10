@@ -12,5 +12,5 @@ public class SupportMessageDTO {
     private boolean fromGuest;
     private String content;
     private LocalDateTime createdAt;
-    private boolean isRead;  // ĐÃ SỬA: read → isRead
+    private boolean isRead;
 }

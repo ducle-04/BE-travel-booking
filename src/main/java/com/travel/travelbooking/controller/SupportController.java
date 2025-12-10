@@ -107,4 +107,11 @@ public class SupportController {
     public ResponseEntity<ConversationDTO> closeConversation(@PathVariable Long id) {
         return ResponseEntity.ok(supportService.closeConversation(id));
     }
+
+    @PutMapping("/read/{id}")
+    public ResponseEntity<?> markMessageRead(@PathVariable Long id) {
+        supportService.markAsRead(id);
+        return ResponseEntity.ok().build();
+    }
+
 }
