@@ -99,7 +99,11 @@ public interface DestinationRepository extends JpaRepository<Destination, Long> 
     )
     FROM Destination d
     LEFT JOIN d.tours t ON t.status = com.travel.travelbooking.entity.TourStatus.ACTIVE
-    LEFT JOIN t.bookings b ON b.status = com.travel.travelbooking.entity.BookingStatus.CONFIRMED
+    LEFT JOIN t.bookings b
+          ON b.status IN (
+              com.travel.travelbooking.entity.BookingStatus.CONFIRMED,
+              com.travel.travelbooking.entity.BookingStatus.COMPLETED
+          )
     WHERE d.status = com.travel.travelbooking.entity.DestinationStatus.ACTIVE
     GROUP BY d.id, d.name, d.imageUrl, d.region, d.description
     ORDER BY 

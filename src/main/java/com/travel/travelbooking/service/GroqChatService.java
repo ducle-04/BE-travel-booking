@@ -103,26 +103,55 @@ public class GroqChatService {
         // Chỉ hiển thị TOP TOUR HOT nếu user không yêu cầu lọc giá
         if (!hasPriceFilter) {
             ctx.append("TOUR ĐANG HOT NHẤT:\n");
+
             tourRepository.findTop10PopularTours().stream().limit(6).forEach(t -> {
+
                 Tour tour = tourRepository.findById(t.getTourId()).orElse(null);
                 if (tour == null) return;
 
-                int left = tour.getMaxParticipants() - tour.getTotalParticipants();
-                String dates = startDateRepository.findStartDatesByTourId(t.getTourId())
-                        .stream().limit(3)
-                        .map(d -> d.format(df))
+                // Lấy danh sách ngày khởi hành
+                List<TourStartDate> startDates = startDateRepository.findByTourIdOrderByStartDate(t.getTourId());
+
+                // Lấy 3 ngày để hiển thị
+                String dates = startDates.stream()
+                        .limit(3)
+                        .map(d -> d.getStartDate().format(df))
                         .collect(Collectors.joining(", "));
 
-                String seatInfo = left <= 0 ? "hết chỗ rồi ạ"
-                        : left <= 5 ? "chỉ còn " + left + " chỗ cuối cùng"
-                        : "còn " + left + " chỗ";
+                // Tìm ngày gần nhất còn chỗ
+                TourStartDate firstAvailable = startDates.stream()
+                        .filter(d -> d.getBookedParticipants() < d.getCapacity())
+                        .findFirst()
+                        .orElse(null);
 
-                ctx.append(String.format("• %s đi %s – %.0fđ – %s – ngày %s. /tour/%d\n",
-                        t.getTourName(), t.getDestinationName(), tour.getPrice(),
-                        seatInfo, dates, t.getTourId()));
+                int left = 0;
+                if (firstAvailable != null) {
+                    left = firstAvailable.getCapacity() - firstAvailable.getBookedParticipants();
+                }
+
+                String seatInfo;
+                if (firstAvailable == null) {
+                    seatInfo = "hết chỗ rồi ạ";
+                } else if (left <= 5) {
+                    seatInfo = "chỉ còn " + left + " chỗ cuối cùng";
+                } else {
+                    seatInfo = "còn " + left + " chỗ";
+                }
+
+                ctx.append(String.format(
+                        "• %s đi %s – %.0fđ – %s – ngày %s. /tour/%d\n",
+                        t.getTourName(),
+                        t.getDestinationName(),
+                        tour.getPrice(),
+                        seatInfo,
+                        dates.isEmpty() ? "Đang cập nhật" : dates,
+                        t.getTourId()
+                ));
             });
+
             ctx.append("\n");
         }
+
 
         // Nếu user lọc giá → chỉ đưa tour phù hợp giá vào context
         if (hasPriceFilter) {
@@ -149,31 +178,47 @@ public class GroqChatService {
         // Lọc theo từ khóa
         String keyword = extractMainKeyword(msg);
         if (keyword.length() >= 2) {
+
             tourRepository.findByNameContainingIgnoreCaseWithCounts(keyword)
                     .stream().limit(6)
                     .forEach(t -> {
-                        List<String> dates = startDateRepository.findStartDatesByTourId(t.getId())
-                                .stream().limit(4).map(d -> d.format(df)).toList();
-                        int left = t.getMaxParticipants() - t.getTotalParticipants();
+
+                        // Lấy ngày khởi hành (full entity để lấy bookedParticipants)
+                        List<TourStartDate> startDates = startDateRepository
+                                .findByTourIdOrderByStartDate(t.getId());
+
+                        // Format hiển thị ngày
+                        List<String> formattedDates = startDates.stream()
+                                .limit(4)
+                                .map(d -> d.getStartDate().format(df))
+                                .toList();
+
+                        // Tính chỗ còn lại theo ngày gần nhất
+                        int remaining = startDates.isEmpty()
+                                ? 0
+                                : startDates.get(0).getCapacity() - startDates.get(0).getBookedParticipants();
 
                         ctx.append(String.format("""
-                        ──────────────────
-                        Tour %s
-                        Điểm đến: %s
-                        Giá: %.0fđ
-                        Còn %d/%d chỗ
-                        Khởi hành: %s
-                        Link: /tour/%d
-                        """,
+                ──────────────────
+                Tour %s
+                Điểm đến: %s
+                Giá: %.0fđ
+                Còn %d chỗ
+                Khởi hành: %s
+                Link: /tour/%d
+                """,
                                 t.getName(),
                                 t.getDestinationName(),
                                 t.getPrice(),
-                                left, t.getMaxParticipants(),
-                                dates.isEmpty() ? "Liên hệ" : String.join(", ", dates),
-                                t.getId()));
+                                Math.max(remaining, 0),
+                                formattedDates.isEmpty() ? "Liên hệ" : String.join(", ", formattedDates),
+                                t.getId()
+                        ));
                     });
+
             ctx.append("\n");
         }
+
 
         // Lọc theo vùng
         Region region = detectRegion(msg);
@@ -203,7 +248,7 @@ public class GroqChatService {
         Bạn là tư vấn viên du lịch siêu nhiệt tình, dễ thương và nói chuyện cực kỳ tự nhiên như người thật.
         Trả lời ngắn gọn 3-5 câu thôi, dùng nhiều emoji vui vẻ, ngôn ngữ gần gũi, hay dùng từ "ạ", "nha", "luôn ạ".
         Chỉ dùng dữ liệu thực tế bên dưới, không bịa thông tin.
-        Gợi ý tour kèm tên + giá + chỗ trống + ngày đi + link /tour/{id}
+        Gợi ý tour kèm tên + giá + chỗ trống + ngày đi + link /tour/{id} ( bắt buộc câu trả lời phải kèm link /tour/{id})
         
         QUAN TRỌNG:
         - Nhớ chính xác những gì khách đã nói ở các lượt trước (xem lịch sử chat bên dưới).

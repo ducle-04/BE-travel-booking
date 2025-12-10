@@ -162,21 +162,21 @@ public class TourController {
                 .orElseThrow(() -> new ResourceNotFoundException("Tour không tồn tại"));
 
         if (tour.getStatus() != TourStatus.ACTIVE) {
-            return ResponseEntity.ok(List.of()); // hoặc trả về 404 tùy bạn
+            return ResponseEntity.ok(List.of());
         }
-
-        // Tính số người đã đặt (chỉ tính CONFIRMED)
-        long confirmedCount = bookingRepository.getCurrentParticipants(tourId);
-        int remainingSeats = tour.getMaxParticipants() - (int) confirmedCount;
-        boolean hasSeat = remainingSeats > 0;
 
         List<StartDateAvailabilityDTO> result = tour.getStartDates().stream()
                 .map(ts -> {
+                    long booked = bookingRepository.getParticipantsByStartDate(ts.getId());
+                    int capacity = ts.getCapacity();
+                    int remaining = capacity - (int) booked;
+
                     StartDateAvailabilityDTO dto = new StartDateAvailabilityDTO();
                     dto.setDate(ts.getStartDate());
                     dto.setFormattedDate(formatVietnameseDate(ts.getStartDate()));
-                    dto.setRemainingSeats(remainingSeats);
-                    dto.setAvailable(hasSeat);
+                    dto.setRemainingSeats(Math.max(remaining, 0));
+                    dto.setAvailable(remaining > 0);
+
                     return dto;
                 })
                 .sorted(Comparator.comparing(StartDateAvailabilityDTO::getDate))
@@ -184,6 +184,7 @@ public class TourController {
 
         return ResponseEntity.ok(result);
     }
+
     private String formatVietnameseDate(LocalDate date) {
         if (date == null) return "";
         String[] weekdays = {"CN", "T2", "T3", "T4", "T5", "T6", "T7"};

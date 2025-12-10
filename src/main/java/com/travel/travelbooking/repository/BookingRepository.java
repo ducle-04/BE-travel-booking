@@ -18,7 +18,7 @@ import java.util.List;
 public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     Page<Booking> findByUserIdAndStatusNot(Long userId, BookingStatus status, Pageable pageable);
-    // Thêm phương thức tìm theo userId + status (không tính DELETED)
+
     Page<Booking> findByUserIdAndStatusInAndStatusNot(
             Long userId,
             List<BookingStatus> statuses,
@@ -34,22 +34,27 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     Page<Booking> findByStatusIn(List<BookingStatus> statuses, Pageable pageable);
 
-    Page<Booking> findByStatusInAndStatusNot(List<BookingStatus> statuses, BookingStatus excludedStatus, Pageable pageable);
+    Page<Booking> findByStatusInAndStatusNot(
+            List<BookingStatus> statuses,
+            BookingStatus excludedStatus,
+            Pageable pageable
+    );
 
     long countByTourIdAndStatus(Long tourId, BookingStatus status);
 
     long countByStatus(BookingStatus status);
 
+    boolean existsBySelectedStartDateId(Long startDateId);
+    /* -----------------------------------------------
+       Đếm số khách theo NGÀY KHỞI HÀNH
+       ----------------------------------------------- */
     @Query("""
-    SELECT COALESCE(SUM(b.numberOfPeople), 0)
-    FROM Booking b
-    WHERE b.tour.id = :tourId
-      AND b.status IN (
-          com.travel.travelbooking.entity.BookingStatus.CONFIRMED,
-          com.travel.travelbooking.entity.BookingStatus.COMPLETED
-      )
-""")
-    long getCurrentParticipants(@Param("tourId") Long tourId);
+        SELECT COALESCE(SUM(b.numberOfPeople), 0)
+        FROM Booking b
+        WHERE b.selectedStartDate.id = :startDateId
+          AND b.status IN ('CONFIRMED', 'COMPLETED')
+    """)
+    long getParticipantsByStartDate(@Param("startDateId") Long startDateId);
 
 
     List<Booking> findByContactEmailAndUserIsNull(String email);
@@ -65,22 +70,16 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
         SUM(CASE WHEN b.status = 'COMPLETED' THEN 1 ELSE 0 END)
     )
     FROM Booking b
-    WHERE b.status != 'DELETED'
+    WHERE b.status <> 'DELETED'
     """)
     BookingStatsDTO getBookingStatistics();
 
-    /**
-     * Kiểm tra user đã từng đặt tour này và booking đã COMPLETED chưa
-     */
     boolean existsByUserIdAndTourIdAndStatus(
             Long userId,
             Long tourId,
             BookingStatus status
     );
 
-    /**
-     * (Tùy chọn) Lấy booking COMPLETED của user với tour
-     */
     default Booking findCompletedBookingByUserAndTour(Long userId, Long tourId) {
         return findByUserIdAndTourIdAndStatus(userId, tourId, BookingStatus.COMPLETED)
                 .stream().findFirst().orElse(null);
@@ -92,20 +91,20 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
             BookingStatus status
     );
 
-    /**
-     * LẤY 5 ĐƠN ĐẶT TOUR GẦN NHẤT (CONFIRMED, PENDING, CANCELLED...)
-     */
+    /* -----------------------------------------------
+       5 booking gần nhất
+       ----------------------------------------------- */
     @Query("""
     SELECT new com.travel.travelbooking.dto.LatestBookingDTO(
-    CONCAT('DH', LPAD(CAST(b.id AS string), 6, '0')),
-    c.fullName,
-    c.phoneNumber,
-    COALESCE(u.avatarUrl, '/default-avatar.jpg'),
-    t.name,
-    b.bookingDate,
-    b.status,
-    b.totalPrice
-)
+        CONCAT('DH', LPAD(CAST(b.id AS string), 6, '0')),
+        c.fullName,
+        c.phoneNumber,
+        COALESCE(u.avatarUrl, '/default-avatar.jpg'),
+        t.name,
+        b.bookingDate,
+        b.status,
+        b.totalPrice
+    )
     FROM Booking b
     LEFT JOIN b.tour t
     LEFT JOIN b.contact c
@@ -115,16 +114,23 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
     """)
     Page<LatestBookingDTO> findLatestBookingsDTO(Pageable pageable);
 
-
     default List<LatestBookingDTO> findTop5LatestBookings() {
         return findLatestBookingsDTO(PageRequest.of(0, 5)).getContent();
     }
 
-    // Doanh thu thực tế (chỉ tính đơn đã hoàn thành tour)
+    /* -----------------------------------------------
+       Doanh thu thực tế
+       ----------------------------------------------- */
     @Query("SELECT COALESCE(SUM(b.totalPrice), 0) FROM Booking b WHERE b.status = 'COMPLETED'")
     Double getActualRevenue();
 
-    // Doanh thu dự kiến (đã xác nhận + đã hoàn thành = chắc chắn thu được)
-    @Query("SELECT COALESCE(SUM(b.totalPrice), 0) FROM Booking b WHERE b.status IN ('CONFIRMED', 'COMPLETED')")
+    /* -----------------------------------------------
+       Doanh thu dự kiến
+       ----------------------------------------------- */
+    @Query("""
+        SELECT COALESCE(SUM(b.totalPrice), 0) 
+        FROM Booking b 
+        WHERE b.status IN ('CONFIRMED', 'COMPLETED')
+    """)
     Double getExpectedRevenue();
 }

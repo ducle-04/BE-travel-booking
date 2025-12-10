@@ -23,8 +23,6 @@ public class BookingServiceImpl implements BookingService {
     private final BookingRepository bookingRepository;
     private final TourRepository tourRepository;
     private final UserRepository userRepository;
-    private final TourService tourService;
-
     private final TourStartDateRepository tourStartDateRepository;
     private final BookingContactRepository bookingContactRepository;
     private final PaymentRepository paymentRepository;
@@ -45,6 +43,15 @@ public class BookingServiceImpl implements BookingService {
                 .findByTourIdAndStartDate(tour.getId(), request.getStartDate())
                 .orElseThrow(() -> new IllegalArgumentException("Ngày khởi hành không hợp lệ hoặc không tồn tại"));
 
+        // === CHECK CHỖ THEO NGÀY ===
+        long current = bookingRepository.getParticipantsByStartDate(startDateEntity.getId());
+        int capacity = startDateEntity.getCapacity();
+
+        if (current + request.getNumberOfPeople() > capacity) {
+            long remaining = capacity - current;
+            throw new IllegalArgumentException("Ngày này chỉ còn " + remaining + " chỗ trống");
+        }
+
         // === Validate transport ===
         Double transportPrice = 0.0;
         String transportName = null;
@@ -62,13 +69,6 @@ public class BookingServiceImpl implements BookingService {
 
         // === Tính giá ===
         double totalPrice = (tour.getPrice() + transportPrice) * request.getNumberOfPeople();
-
-        // === Chỉ check chỗ với CONFIRMED booking ===
-        long confirmedCount = bookingRepository.getCurrentParticipants(tour.getId());
-        if (confirmedCount + request.getNumberOfPeople() > tour.getMaxParticipants()) {
-            long remaining = tour.getMaxParticipants() - confirmedCount;
-            throw new IllegalArgumentException("Chỉ còn " + remaining + " chỗ trống");
-        }
 
         // === Tạo contact ===
         User loggedInUser = userId != null ? userRepository.findById(userId).orElse(null) : null;
@@ -145,7 +145,6 @@ public class BookingServiceImpl implements BookingService {
         Booking booking = bookingRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking không tồn tại"));
 
-        // Không cần kiểm tra user vì admin/staff được xem tất cả
         return toDTO(booking);
     }
 
@@ -158,14 +157,19 @@ public class BookingServiceImpl implements BookingService {
             throw new IllegalArgumentException("Chỉ xác nhận được booking đang chờ");
         }
 
-        long current = bookingRepository.getCurrentParticipants(booking.getTour().getId());
+        TourStartDate sd = booking.getSelectedStartDate();
+        long current = bookingRepository.getParticipantsByStartDate(sd.getId());
         long after = current + booking.getNumberOfPeople();
-        if (after > booking.getTour().getMaxParticipants()) {
-            throw new IllegalArgumentException("Không đủ chỗ trống để xác nhận");
+
+        if (after > sd.getCapacity()) {
+            throw new IllegalArgumentException("Không đủ chỗ trống ở ngày này để xác nhận");
         }
 
+        // Cập nhật số lượng khách của ngày đó
+        sd.setBookedParticipants((int) after);
+        tourStartDateRepository.save(sd);
+
         booking.setStatus(BookingStatus.CONFIRMED);
-        updateTourParticipants(booking.getTour().getId());
         return toDTO(bookingRepository.save(booking));
     }
 
@@ -193,7 +197,12 @@ public class BookingServiceImpl implements BookingService {
         }
 
         booking.setStatus(BookingStatus.CANCELLED);
-        updateTourParticipants(booking.getTour().getId());
+
+        // Trả lại số chỗ của ngày
+        TourStartDate sd = booking.getSelectedStartDate();
+        sd.setBookedParticipants(sd.getBookedParticipants() - booking.getNumberOfPeople());
+        tourStartDateRepository.save(sd);
+
         return toDTO(bookingRepository.save(booking));
     }
 
@@ -284,24 +293,17 @@ public class BookingServiceImpl implements BookingService {
         return bookingRepository.getBookingStatistics();
     }
 
-    // === GIỮ NGUYÊN LOGIC CŨ – toDTO RIÊNG TRONG IMPL ===
+    // === INTERNAL HELPERS ===
+
     private Booking getBookingByIdAndUser(Long id, Long userId) {
         return bookingRepository.findById(id)
-                .filter(b -> b.getUser() != null && b.getUser().getId().equals(userId)) // ← SỬA DÒNG NÀY
+                .filter(b -> b.getUser() != null && b.getUser().getId().equals(userId))
                 .orElseThrow(() -> new ResourceNotFoundException("Không tìm thấy booking của bạn"));
     }
 
     private Booking getBookingForAdmin(Long id) {
         return bookingRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Booking không tồn tại"));
-    }
-
-    private void updateTourParticipants(Long tourId) {
-        Tour tour = tourRepository.findById(tourId)
-                .orElseThrow(() -> new ResourceNotFoundException("Tour không tồn tại"));
-        long count = bookingRepository.getCurrentParticipants(tourId);
-        tour.setTotalParticipants((int) count);
-        tourRepository.save(tour);
     }
 
     public BookingDTO toDTO(Booking b) {
@@ -321,13 +323,11 @@ public class BookingServiceImpl implements BookingService {
         dto.setStatus(b.getStatus());
         dto.setNote(b.getNote());
 
-        // Contact info
         dto.setContactName(b.getContact().getFullName());
         dto.setContactEmail(b.getContact().getEmail());
         dto.setContactPhone(b.getContact().getPhoneNumber());
         dto.setGuest(b.getUser() == null);
 
-        // Nếu có user đăng nhập
         if (b.getUser() != null) {
             dto.setUserId(b.getUser().getId());
             dto.setUserFullname(b.getUser().getFullname());
@@ -335,7 +335,6 @@ public class BookingServiceImpl implements BookingService {
             dto.setUserAvatarUrl(b.getUser().getAvatarUrl());
         }
 
-        // PHẦN THANH TOÁN
         if (b.getPayment() != null) {
             dto.setPaymentMethod(b.getPayment().getMethod());
             dto.setPaymentStatus(b.getPayment().getStatus());
@@ -344,5 +343,4 @@ public class BookingServiceImpl implements BookingService {
 
         return dto;
     }
-
 }

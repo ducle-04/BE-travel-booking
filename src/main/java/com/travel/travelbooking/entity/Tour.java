@@ -34,9 +34,6 @@ public class Tour {
     private Double averageRating;
 
     @Column(nullable = false)
-    private Integer totalParticipants = 0;
-
-    @Column(nullable = false)
     private Integer maxParticipants;
 
     @Column(name = "views", nullable = false, columnDefinition = "BIGINT DEFAULT 0")

@@ -39,11 +39,11 @@ public class TourDTO {
     private String description;
 
     private Double averageRating;
-    private Integer totalParticipants;
 
     @NotNull(message = "Số người tối đa không được để trống")
     @Min(value = 1, message = "Số người tối đa phải ít nhất là 1")
     private Integer maxParticipants;
+
     private Long views;
     private TourStatus status;
     private LocalDateTime createdAt;
@@ -66,7 +66,8 @@ public class TourDTO {
     // Constructor cũ (không count)
     public TourDTO(Long id, String name, Long destinationId, String destinationName, String duration,
                    Double price, String imageUrl, String description, Double averageRating,
-                   Integer totalParticipants, TourStatus status, LocalDateTime createdAt, Integer maxParticipants) {
+                   TourStatus status, LocalDateTime createdAt, Integer maxParticipants) {
+
         this.id = id;
         this.name = name;
         this.destinationId = destinationId;
@@ -76,7 +77,6 @@ public class TourDTO {
         this.imageUrl = imageUrl;
         this.description = description;
         this.averageRating = averageRating;
-        this.totalParticipants = totalParticipants;
         this.status = status;
         this.createdAt = createdAt;
         this.maxParticipants = maxParticipants;
@@ -85,11 +85,13 @@ public class TourDTO {
     // Constructor có count + category
     public TourDTO(Long id, String name, Long destinationId, String destinationName, String duration,
                    Double price, String imageUrl, String description, Double averageRating,
-                   Integer totalParticipants, TourStatus status, LocalDateTime createdAt,
+                   TourStatus status, LocalDateTime createdAt,
                    Long bookingsCount, Long reviewsCount, Integer maxParticipants,
                    Long categoryId, String categoryName, String categoryIcon, Long views) {
+
         this(id, name, destinationId, destinationName, duration, price, imageUrl, description,
-                averageRating, totalParticipants, status, createdAt, maxParticipants);
+                averageRating, status, createdAt, maxParticipants);
+
         this.bookingsCount = bookingsCount;
         this.reviewsCount = reviewsCount;
         this.categoryId = categoryId;

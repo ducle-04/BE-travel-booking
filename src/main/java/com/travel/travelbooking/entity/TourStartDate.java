@@ -20,11 +20,20 @@ public class TourStartDate {
     @Column(nullable = false)
     private LocalDate startDate;
 
-    // THÊM 2 CONSTRUCTOR NÀY
+    // Số chỗ cho NGÀY khởi hành này
+    @Column(nullable = false)
+    private Integer capacity;
+
+    // Số khách đã đặt NGÀY này
+    @Column(nullable = false)
+    private Integer bookedParticipants = 0;
+
     public TourStartDate() {}
 
     public TourStartDate(Tour tour, LocalDate startDate) {
         this.tour = tour;
         this.startDate = startDate;
+        this.capacity = tour.getMaxParticipants(); // default = maxParticipants của tour
+        this.bookedParticipants = 0;
     }
 }

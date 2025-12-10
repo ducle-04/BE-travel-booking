@@ -28,9 +28,10 @@ public class TourServiceImpl implements TourService {
     private final TourRepository tourRepository;
     private final DestinationRepository destinationRepository;
     private final TourCategoryRepository tourCategoryRepository;
-    private final TourStartDateRepository tourStartDateRepository; // THÊM MỚI
+    private final TourStartDateRepository tourStartDateRepository;
     private final CloudinaryService cloudinaryService;
     private final TourDetailService tourDetailService;
+    private final BookingRepository bookingRepository; // THÊM ĐỂ CHECK BOOKING THEO NGÀY
 
     // ====================== PUBLIC METHODS ======================
 
@@ -52,7 +53,6 @@ public class TourServiceImpl implements TourService {
         tour.setDestination(dest);
         tour.setCategory(category);
 
-        // Xử lý danh sách ngày khởi hành
         // START DATES – CREATE
         if (dto.getStartDates() != null && !dto.getStartDates().isEmpty()) {
             tour.setStartDates(
@@ -81,16 +81,13 @@ public class TourServiceImpl implements TourService {
     public TourDTO getTourById(Long id) {
         validateId(id);
 
-        // TĂNG LƯỢT XEM (native query - hiệu suất cực cao, không load entity)
+        // TĂNG LƯỢT XEM (native query - hiệu suất cao)
         tourRepository.incrementViews(id);
 
-        // Lấy dữ liệu tour với tất cả thông tin (views đã được tăng +1)
         TourDTO dto = tourRepository.findByIdWithCounts(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Tour không tồn tại hoặc đã bị xóa"));
 
-        // Load thêm TourDetail + StartDates như cũ
         enhanceWithDetails(List.of(dto));
-
         return dto;
     }
 
@@ -142,20 +139,58 @@ public class TourServiceImpl implements TourService {
             tour.setImageUrl(imageUrl);
         }
 
+        // Cập nhật các field cơ bản của tour (bao gồm maxParticipants)
         updateEntity(tour, dto, dest, category);
 
-        // Cập nhật danh sách ngày khởi hành (xóa cũ + thêm mới đúng cách với Hibernate)
+        // ================== CẬP NHẬT DANH SÁCH NGÀY KHỞI HÀNH ==================
         List<TourStartDate> existingDates = tour.getStartDates();
-
-        // XÓA CÁC PHẦN TỬ CŨ ĐÚNG CHUẨN (Hibernate orphanRemoval OK)
-        existingDates.clear();
-
-        // THÊM MỚI
-        if (dto.getStartDates() != null && !dto.getStartDates().isEmpty()) {
-            dto.getStartDates().forEach(date -> {
-                existingDates.add(new TourStartDate(tour, date));
-            });
+        if (existingDates == null) {
+            existingDates = new ArrayList<>();
+            tour.setStartDates(existingDates);
         }
+
+        List<LocalDate> newDates = dto.getStartDates() != null
+                ? dto.getStartDates()
+                : new ArrayList<>();
+
+        // 1) XOÁ BỚT NHỮNG NGÀY KHÔNG CÒN TRONG DTO
+        existingDates.removeIf(tsd -> {
+            LocalDate date = tsd.getStartDate();
+            if (!newDates.contains(date)) {
+                // Không cho xoá nếu ngày này đã có booking
+                boolean hasBookings = bookingRepository.existsBySelectedStartDateId(tsd.getId());
+                if (hasBookings) {
+                    throw new IllegalArgumentException(
+                            "Không thể xoá ngày khởi hành " + date + " vì đã có khách đặt"
+                    );
+                }
+                // chưa ai đặt → cho phép xoá
+                return true;
+            }
+            return false;
+        });
+
+        // 2) THÊM NHỮNG NGÀY MỚI CHƯA CÓ
+        for (LocalDate date : newDates) {
+            boolean exists = existingDates.stream()
+                    .anyMatch(tsd -> tsd.getStartDate().equals(date));
+            if (!exists) {
+                existingDates.add(new TourStartDate(tour, date));
+            }
+        }
+
+        // 3) ĐỒNG BỘ CAPACITY THEO maxParticipants MỚI
+        for (TourStartDate tsd : existingDates) {
+            if (dto.getMaxParticipants() < tsd.getBookedParticipants()) {
+                throw new IllegalArgumentException(
+                        "Số chỗ tối đa mới (" + dto.getMaxParticipants() +
+                                ") nhỏ hơn số khách đã đặt (" + tsd.getBookedParticipants() +
+                                ") cho ngày " + tsd.getStartDate()
+                );
+            }
+            tsd.setCapacity(dto.getMaxParticipants());
+        }
+        // ================== HẾT PHẦN CẬP NHẬT NGÀY ==================
 
         tourRepository.save(tour);
         return findWithEnhancements(id);
@@ -313,7 +348,7 @@ public class TourServiceImpl implements TourService {
         tour.setDescription(dto.getDescription());
         tour.setMaxParticipants(dto.getMaxParticipants());
         tour.setStatus(dto.getStatus() != null ? dto.getStatus() : TourStatus.ACTIVE);
-        tour.setStartDates(new ArrayList<>()); // khởi tạo để tránh null
+        tour.setStartDates(new ArrayList<>()); // tránh null
         return tour;
     }
 
