@@ -40,8 +40,17 @@ public interface BookingRepository extends JpaRepository<Booking, Long> {
 
     long countByStatus(BookingStatus status);
 
-    @Query("SELECT COALESCE(SUM(b.numberOfPeople), 0) FROM Booking b WHERE b.tour.id = :tourId AND b.status = 'CONFIRMED'")
+    @Query("""
+    SELECT COALESCE(SUM(b.numberOfPeople), 0)
+    FROM Booking b
+    WHERE b.tour.id = :tourId
+      AND b.status IN (
+          com.travel.travelbooking.entity.BookingStatus.CONFIRMED,
+          com.travel.travelbooking.entity.BookingStatus.COMPLETED
+      )
+""")
     long getCurrentParticipants(@Param("tourId") Long tourId);
+
 
     List<Booking> findByContactEmailAndUserIsNull(String email);
 

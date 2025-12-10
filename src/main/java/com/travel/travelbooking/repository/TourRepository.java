@@ -35,29 +35,41 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
         1. Lấy tất cả tour (DTO) + COUNT + VIEWS
        ---------------------------------------------------------- */
     @Query("""
-        SELECT new com.travel.travelbooking.dto.TourDTO(
-            t.id, t.name, d.id, d.name, t.duration, t.price, t.imageUrl,
-            t.description, t.averageRating,
-            COALESCE(t.totalParticipants, 0), t.status,
-            t.createdAt,
-            COUNT(DISTINCT b.id), 
-            COUNT(DISTINCT r.id),
-            t.maxParticipants,
-            c.id, c.name, c.icon,
-            COALESCE(t.views, 0)
+    SELECT new com.travel.travelbooking.dto.TourDTO(
+        t.id, t.name, d.id, d.name, t.duration, t.price, t.imageUrl,
+        t.description, t.averageRating,
+        COALESCE(t.totalParticipants, 0), t.status,
+        t.createdAt,
+
+        COUNT(DISTINCT b.id),
+        COUNT(DISTINCT r.id),        
+        t.maxParticipants,
+
+        c.id, c.name, c.icon,
+        COALESCE(t.views, 0)
+    )
+    FROM Tour t
+    LEFT JOIN t.destination d
+    LEFT JOIN t.category c
+
+    LEFT JOIN t.bookings b
+        ON b.status IN (
+            com.travel.travelbooking.entity.BookingStatus.CONFIRMED,
+            com.travel.travelbooking.entity.BookingStatus.COMPLETED
         )
-        FROM Tour t
-        LEFT JOIN t.destination d
-        LEFT JOIN t.category c
-        LEFT JOIN t.bookings b ON b.status = com.travel.travelbooking.entity.BookingStatus.CONFIRMED
-        LEFT JOIN t.reviews r
-        WHERE t.status <> com.travel.travelbooking.entity.TourStatus.DELETED
-        GROUP BY t.id, t.name, d.id, d.name, t.duration, t.price, t.imageUrl,
-                 t.description, t.averageRating, t.totalParticipants, t.status,
-                 t.createdAt, t.maxParticipants, c.id, c.name, c.icon, t.views
-        ORDER BY t.id ASC
-        """)
+
+    LEFT JOIN t.reviews r
+
+    WHERE t.status <> com.travel.travelbooking.entity.TourStatus.DELETED
+
+    GROUP BY t.id, t.name, d.id, d.name, t.duration, t.price, t.imageUrl,
+             t.description, t.averageRating, t.totalParticipants, t.status,
+             t.createdAt, t.maxParticipants, c.id, c.name, c.icon, t.views
+
+    ORDER BY t.id ASC
+    """)
     List<TourDTO> findAllWithCounts();
+
 
     /* ----------------------------------------------------------
         2. Lấy tour theo ID (DTO) + COUNT + VIEWS
@@ -77,7 +89,12 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
         FROM Tour t
         LEFT JOIN t.destination d
         LEFT JOIN t.category c
-        LEFT JOIN t.bookings b ON b.status = com.travel.travelbooking.entity.BookingStatus.CONFIRMED
+        LEFT JOIN t.bookings b
+            ON b.status IN (
+                com.travel.travelbooking.entity.BookingStatus.CONFIRMED,
+                com.travel.travelbooking.entity.BookingStatus.COMPLETED
+            )
+            
         LEFT JOIN t.reviews r
         WHERE t.id = :id AND t.status <> com.travel.travelbooking.entity.TourStatus.DELETED
         GROUP BY t.id, t.name, d.id, d.name, t.duration, t.price, t.imageUrl,
@@ -104,7 +121,12 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
         FROM Tour t
         LEFT JOIN t.destination d
         LEFT JOIN t.category c
-        LEFT JOIN t.bookings b ON b.status = com.travel.travelbooking.entity.BookingStatus.CONFIRMED
+        LEFT JOIN t.bookings b
+            ON b.status IN (
+                com.travel.travelbooking.entity.BookingStatus.CONFIRMED,
+                com.travel.travelbooking.entity.BookingStatus.COMPLETED
+            )
+          
         LEFT JOIN t.reviews r
         WHERE LOWER(t.name) LIKE LOWER(CONCAT('%', :name, '%'))
           AND t.status <> com.travel.travelbooking.entity.TourStatus.DELETED
@@ -133,7 +155,12 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
         FROM Tour t
         LEFT JOIN t.destination d
         LEFT JOIN t.category c
-        LEFT JOIN t.bookings b ON b.status = com.travel.travelbooking.entity.BookingStatus.CONFIRMED
+        LEFT JOIN t.bookings b
+            ON b.status IN (
+                com.travel.travelbooking.entity.BookingStatus.CONFIRMED,
+                com.travel.travelbooking.entity.BookingStatus.COMPLETED
+            )
+          
         LEFT JOIN t.reviews r
         WHERE t.destination = :destination
           AND t.status <> com.travel.travelbooking.entity.TourStatus.DELETED
@@ -162,7 +189,12 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
         FROM Tour t
         LEFT JOIN t.destination d
         LEFT JOIN t.category c
-        LEFT JOIN t.bookings b ON b.status = com.travel.travelbooking.entity.BookingStatus.CONFIRMED
+        LEFT JOIN t.bookings b
+            ON b.status IN (
+                com.travel.travelbooking.entity.BookingStatus.CONFIRMED,
+                com.travel.travelbooking.entity.BookingStatus.COMPLETED
+            )
+          
         LEFT JOIN t.reviews r
         WHERE (:destinationName IS NULL OR LOWER(d.name) LIKE LOWER(CONCAT('%', :destinationName, '%')))
           AND (:status IS NULL OR t.status = :status)
@@ -202,7 +234,12 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
         FROM Tour t
         LEFT JOIN t.destination d
         LEFT JOIN t.category c
-        LEFT JOIN t.bookings b ON b.status = com.travel.travelbooking.entity.BookingStatus.CONFIRMED
+        LEFT JOIN t.bookings b
+            ON b.status IN (
+                com.travel.travelbooking.entity.BookingStatus.CONFIRMED,
+                com.travel.travelbooking.entity.BookingStatus.COMPLETED
+            )
+          
         LEFT JOIN t.reviews r
         WHERE LOWER(t.name) LIKE LOWER(CONCAT('%', :name, '%'))
           AND t.status <> com.travel.travelbooking.entity.TourStatus.DELETED
@@ -250,7 +287,12 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
         FROM Tour t
         LEFT JOIN t.destination d
         LEFT JOIN t.category c
-        LEFT JOIN t.bookings b ON b.status = com.travel.travelbooking.entity.BookingStatus.CONFIRMED
+        LEFT JOIN t.bookings b
+            ON b.status IN (
+                com.travel.travelbooking.entity.BookingStatus.CONFIRMED,
+                com.travel.travelbooking.entity.BookingStatus.COMPLETED
+            )
+          
         LEFT JOIN t.reviews r
         WHERE t.category.id = :categoryId
           AND t.status = com.travel.travelbooking.entity.TourStatus.ACTIVE
@@ -276,7 +318,12 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
         FROM Tour t
         LEFT JOIN t.destination d
         LEFT JOIN t.category c
-        LEFT JOIN t.bookings b ON b.status = com.travel.travelbooking.entity.BookingStatus.CONFIRMED
+        LEFT JOIN t.bookings b
+            ON b.status IN (
+                com.travel.travelbooking.entity.BookingStatus.CONFIRMED,
+                com.travel.travelbooking.entity.BookingStatus.COMPLETED
+            )
+          
         LEFT JOIN t.reviews r
         WHERE t.category.id = :categoryId
           AND t.status = com.travel.travelbooking.entity.TourStatus.ACTIVE
@@ -305,7 +352,12 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
     )
     FROM Tour t
     LEFT JOIN t.destination d
-    LEFT JOIN t.bookings b ON b.status = com.travel.travelbooking.entity.BookingStatus.CONFIRMED
+    LEFT JOIN t.bookings b
+            ON b.status IN (
+                com.travel.travelbooking.entity.BookingStatus.CONFIRMED,
+                com.travel.travelbooking.entity.BookingStatus.COMPLETED
+            )
+          
     LEFT JOIN t.reviews r
     WHERE t.status = com.travel.travelbooking.entity.TourStatus.ACTIVE
     GROUP BY t.id, t.name, t.imageUrl, d.name, t.description, t.views, t.averageRating
@@ -333,7 +385,12 @@ public interface TourRepository extends JpaRepository<Tour, Long> {
     )
     FROM Tour t
     LEFT JOIN t.destination d
-    LEFT JOIN t.bookings b ON b.status = com.travel.travelbooking.entity.BookingStatus.CONFIRMED
+    LEFT JOIN t.bookings b
+            ON b.status IN (
+                com.travel.travelbooking.entity.BookingStatus.CONFIRMED,
+                com.travel.travelbooking.entity.BookingStatus.COMPLETED
+            )
+          
     WHERE t.status = com.travel.travelbooking.entity.TourStatus.ACTIVE
     GROUP BY t.id, t.name, t.imageUrl, d.name
     ORDER BY COUNT(b.id) DESC
